@@ -27,32 +27,40 @@ bad_channels = raw.info['bads']
 good_channels = [ch for ch in all_channels if ch not in bad_channels]
 
 # %%
-# Select a random channel
-selected_channel = random.choice(all_channels)
-print("Selected channel:", selected_channel)
+# First block : assess a single channel 
 
-# %%
-# Plot the selected channel 
-data, times = raw[selected_channel]
-datatimes = data[0,2000:4000]
-times = times[2000:4000]
-plt.figure(figsize=(10, 4))
-plt.plot(times, datatimes)
-plt.xlabel('Time (s)')
-plt.ylabel('Amplitude (uV)')
-plt.title(f'Timeseries for the channel {selected_channel}')
-plt.show()
+# Initialize the variables
+correct = 0
+incorrect = 0
 
-# %%
-# Ask the user to classify the channel as "good" or "bad"
-channel_status = input("Is it a good or a bad channel ?")
+for i in range(10):
+    # Select a random channel
+    selected_channel = random.choice(all_channels)
+    print("Selected channel:", selected_channel)
 
-# %%
-# Determine if the user's response is correct and provide feedback 
-if (channel_status == "bad" and selected_channel in bad_channels) or (channel_status == "good" and selected_channel in good_channels):
-    print("Yes, you are right!")
-elif (channel_status == "bad" and selected_channel in good_channels) or (channel_status == "good" and selected_channel in bad_channels):
-    print("No, you are wrong.")
-else:
-    print("The channel status is not valid.")
+    # Plot the selected channel 
+    data, times = raw[selected_channel]
+    datatimes = data[0,2000:4000]
+    times = times[2000:4000]
+    plt.figure(figsize=(10, 4))
+    plt.plot(times, datatimes)
+    plt.xlabel('Time (s)')
+    plt.ylabel('Amplitude (uV)')
+    plt.title(f'Timeseries for the channel {selected_channel}')
+    plt.show()
 
+    # Ask the user to classify the channel as "good" or "bad"
+    channel_status = input("Is it a good or a bad channel ?")
+
+    # Determine if the user's response is correct and provide feedback 
+    if (channel_status == "bad" and selected_channel in bad_channels) or (channel_status == "good" and selected_channel in good_channels):
+        print("Yes, you are right!")
+        correct += 1
+    elif (channel_status == "bad" and selected_channel in good_channels) or (channel_status == "good" and selected_channel in bad_channels):
+        print("No, you are wrong.")
+        incorrect += 1
+    else:
+        print("The channel status is not valid.")
+
+print("Number of correct responses for the first block:", correct)
+print("Number of incorrect responses for the first block:", incorrect)
