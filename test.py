@@ -10,7 +10,7 @@ path = '/Users/coline/Desktop/Internship/03TPZ5_session2_run01.fif'
 raw = mne.io.read_raw_fif(path, preload=True, allow_maxshield=True)
 
 # %%
-# Downsample the data 
+# Downsample the data good
 raw_resampled = raw.copy().resample(250, npad="auto")
 
 # %%
@@ -58,5 +58,3 @@ for i in range(10):
         print("The channel status is not valid.")
 
 print("Classification results for the first block:", classification_results)
-
-
