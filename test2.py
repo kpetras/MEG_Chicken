@@ -9,6 +9,7 @@ from tkinter import ttk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
 # Function to handle button clicks 
+# Give a feedback according to the channel status and the button clicked, record the results and display the next channel
 def classify_channel(status):
     global selected_channel, classification_results
     if (status == "bad" and selected_channel in bad_channels) or (status == "good" and selected_channel in good_channels):
@@ -22,6 +23,7 @@ def classify_channel(status):
     next_channel()
 
 # Function to display the first channel
+# To display the first channel before the user starts the classification
 def first_channel():
     global selected_channel
     selected_channel = random.choice(all_channels)
@@ -35,6 +37,23 @@ def first_channel():
     ax.set_ylabel('Amplitude (uV)')
     ax.set_title(f'Timeseries for the channel {selected_channel}')
     canvas.draw()
+
+# Function to display the next channel until the current channel index reaches the number of loops
+def next_channel():
+    global selected_channels, current_channel_index
+    if current_channel_index < len(selected_channels):
+        selected_channel = selected_channels[current_channel_index]
+        channel_label.config(text=f"Selected channel: {selected_channel}")
+        data, times = raw[selected_channel]
+        datatimes = data[0, 2000:4000]
+        times = times[2000:4000]
+        ax.clear()
+        ax.plot(times, datatimes)
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel('Amplitude (uV)')
+        ax.set_title(f'Timeseries for the channel {selected_channel}')
+        canvas.draw()
+        current_channel_index += 1
 
 # Load EEG data
 path = '/Users/coline/Desktop/Internship/03TPZ5_session2_run01.fif'
@@ -73,6 +92,7 @@ toolbar = NavigationToolbar2Tk(canvas, root)
 toolbar.update()
 canvas.draw()
 
+# Display the first channel before to click on the buttons
 first_channel()
 
 feedback_label = ttk.Label(root, text="")
@@ -84,26 +104,9 @@ good_button.pack(side=tk.LEFT, padx=10)
 bad_button = ttk.Button(root, text="Bad", command=lambda: classify_channel("bad"))
 bad_button.pack(side=tk.LEFT, padx=10)
 
-# Display the next channel 
-def next_channel():
-    global selected_channels, current_channel_index
-    if current_channel_index < len(selected_channels):
-        selected_channel = selected_channels[current_channel_index]
-        channel_label.config(text=f"Selected channel: {selected_channel}")
-        data, times = raw[selected_channel]
-        datatimes = data[0, 2000:4000]
-        times = times[2000:4000]
-        ax.clear()
-        ax.plot(times, datatimes)
-        ax.set_xlabel('Time (s)')
-        ax.set_ylabel('Amplitude (uV)')
-        ax.set_title(f'Timeseries for the channel {selected_channel}')
-        canvas.draw()
-        current_channel_index += 1
-
 # Start the GUI main loop
 root.mainloop()
 
+# Print the classification results
 print("Classification results for the first block:", classification_results)
 
-# %%
