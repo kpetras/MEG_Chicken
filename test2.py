@@ -8,15 +8,17 @@ import tkinter as tk
 from tkinter import ttk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
+# First block : assess a single channel 
+
 # Function to handle button clicks 
 # Give a feedback according to the channel status and the button clicked, record the results and display the next channel
 def classify_channel(status):
     global selected_channel, classification_results
     if (status == "bad" and selected_channel in bad_channels) or (status == "good" and selected_channel in good_channels):
-        feedback_label.config(text="Yes, you are right!")
+        feedback_label.config(text="Yes, you are right!", foreground="green", font=("Helvetica", 16, "bold"))
         classification_results.append(1)
     elif (status == "bad" and selected_channel in good_channels) or (status == "good" and selected_channel in bad_channels):
-        feedback_label.config(text="No, you are wrong.")
+        feedback_label.config(text="No, you are wrong.", foreground="red", font=("Helvetica", 16, "bold"))
         classification_results.append(0)
     else:
         feedback_label.config(text="The channel status is not valid.")
@@ -72,12 +74,16 @@ bad_channels = raw.info['bads']
 good_channels = [ch for ch in all_channels if ch not in bad_channels]
 
 # Initialize variables
+# Create a list of random selected channels that lenght is equal to the number of loops
+# Create a list to store the classification results
+# Initialize the current channel index to 0
 number_loops = 10
 selected_channels = random.sample(all_channels, number_loops)
 classification_results = []
 current_channel_index = 0
 
 # GUI setup
+# Create a GUI window
 root = tk.Tk()
 root.title("EEG Channel Classification")
 
@@ -85,6 +91,7 @@ root.title("EEG Channel Classification")
 channel_label = ttk.Label(root, text="")
 channel_label.pack()
 
+# Create a figure and a canvas to display the EEG data
 fig, ax = plt.subplots(figsize=(8, 4))
 canvas = FigureCanvasTkAgg(fig, master=root)
 canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
@@ -95,13 +102,19 @@ canvas.draw()
 # Display the first channel before to click on the buttons
 first_channel()
 
+# Create a label to display the feedback
 feedback_label = ttk.Label(root, text="")
 feedback_label.pack()
 
-good_button = ttk.Button(root, text="Good", command=lambda: classify_channel("good"))
+# Create a frame to hold the buttons
+button_frame = ttk.Frame(root)
+button_frame.pack()
+
+# Create buttons to classify the channel
+good_button = ttk.Button(button_frame, text="Good", command=lambda: classify_channel("good"))
 good_button.pack(side=tk.LEFT, padx=10)
 
-bad_button = ttk.Button(root, text="Bad", command=lambda: classify_channel("bad"))
+bad_button = ttk.Button(button_frame, text="Bad", command=lambda: classify_channel("bad"))
 bad_button.pack(side=tk.LEFT, padx=10)
 
 # Start the GUI main loop
@@ -109,4 +122,3 @@ root.mainloop()
 
 # Print the classification results
 print("Classification results for the first block:", classification_results)
-
