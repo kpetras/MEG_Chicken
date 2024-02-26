@@ -1,3 +1,4 @@
+# %%
 # Import packages 
 from psychopy import visual, core
 import matplotlib.pyplot as plt
@@ -6,6 +7,8 @@ import mne
 import random
 import tempfile
 
+# %%
+#Load, downsample the data and label channels
 # Load EEG data
 path = '/Users/coline/Desktop/Internship/03TPZ5_session2_run01.fif'
 raw = mne.io.read_raw_fif(path, preload=True, allow_maxshield=True)
@@ -22,7 +25,10 @@ all_channels = raw.info['ch_names']
 bad_channels = raw.info['bads']
 good_channels = [ch for ch in all_channels if ch not in bad_channels]
 
+# %%
 # First block : assess a single channel 
+
+# Record the results 
 classification_results = []
 
 # Select a random channel
@@ -32,11 +38,12 @@ selected_channel = random.choice(all_channels)
 data, times = raw[selected_channel]
 
 # Select a specific time range from the data
-data = data[0, 2000:4000]
+datatimes = data[0, 2000:4000]
 times = times[2000:4000]
 
-# Plot the data
-plt.plot(times, data.T)
+# Plot the seleted channel
+plt.figure(figsize=(8, 4))
+plt.plot(times, datatimes)
 plt.xlabel('Time (s)')
 plt.ylabel('Amplitude (uV)')
 plt.title(f'Timeseries for the channel {selected_channel}')
@@ -63,3 +70,4 @@ core.wait(5)
 
 # Close the window
 win.close()
+
