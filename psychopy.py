@@ -27,87 +27,94 @@ good_channels = [ch for ch in all_channels if ch not in bad_channels]
 
 # %%
 # First block : assess a single channel 
-
 # Record the results 
 classification_results = []
 
-# Select a random channel
-selected_channel = random.choice(all_channels)
-
-# Get the data for the selected channel
-data, times = raw[selected_channel]
-
-# Select a specific time range from the data
-datatimes = data[0, 2000:4000]
-times = times[2000:4000]
-
-# Plot the seleted channel
-plt.figure(figsize=(8, 4))
-plt.plot(times, datatimes)
-plt.xlabel('Time (s)')
-plt.ylabel('Amplitude (uV)')
-plt.title(f'Timeseries for the channel {selected_channel}')
-
-# Save the plot as an image in a temporary directory
-with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp:
-    plt.savefig(temp.name)
-    temp_image_path = temp.name
-
 # Create a window
-win = visual.Window([800,600], monitor="testMonitor", units="deg")
+win = visual.Window([800,600], monitor="testMonitor", units="deg", color='white')
 
 # Create a text stimulus for the instructions
-instructions = visual.TextStim(win, text="Welcome in this EEG classification task ! EEG channels will be displayed on the screen. Press right arrow if you think it is a bad channel and left arrow for a good channel.", height=1)
+instructions1 = visual.TextStim(win, text="Welcome in this EEG classification task !", height=1.2, pos=(0, 0.2), color ='black')
+instructions2 = visual.TextStim(win, text="On this first block, EEG channels will be displayed on the screen. Press the right arrow if you think this is a bad channel and press the left arrow if you think this is a good channel. Press [Space bar] to start !", height=1, pos=(0, -0.2), color ='black')
 
 # Draw the instructions and flip the window
-instructions.draw()
+instructions1.draw()
+instructions2.draw()
 win.flip()
 
 # Wait for a key press to continue
 while not event.getKeys():
     core.wait(0.01)
 
-# Create an image stimulus
-img = visual.ImageStim(win, image=temp_image_path)
+# Loop over 10 iterations
+for i in range(10):
+    # Select a random channel
+    selected_channel = random.choice(all_channels)
 
-# Draw the image and flip the window
-img.draw()
-win.flip()
+    # Get the data for the selected channel
+    data, times = raw[selected_channel]
 
-# Wait for a key press
-while True:
-    keys = event.getKeys(keyList=['left', 'right'])
-    if 'left' in keys:  # if left arrow is pressed
-        channel_status = 'good'
-        break
-    elif 'right' in keys:  # if right arrow is pressed
-        channel_status = 'bad'
-        break
-    core.wait(0.01)
+    # Select a specific time range from the data
+    datatimes = data[0, 2000:4000]
+    times = times[2000:4000]
 
-# Determine if the user's response is correct and provide feedback 
-if (channel_status == "bad" and selected_channel in bad_channels) or (channel_status == "good" and selected_channel in good_channels):
-    feedback_text = "Yes, you are right!"
-    classification_results.append(1)
-elif (channel_status == "bad" and selected_channel in good_channels) or (channel_status == "good" and selected_channel in bad_channels):
-    feedback_text = "No, you are wrong."
-    classification_results.append(0)
-else:
-    feedback_text = "The channel status is not valid."
+    # Plot the seleted channel
+    plt.figure(figsize=(8, 4))
+    plt.plot(times, datatimes)
+    plt.xlabel('Time (s)')
+    plt.ylabel('Amplitude (uV)')
+    plt.title(f'Timeseries for the channel {selected_channel}')
 
-# Create a text stimulus for the feedback
-feedback = visual.TextStim(win, text=feedback_text, height=1)
+    # Save the plot as an image in a temporary directory
+    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp:
+        plt.savefig(temp.name)
+        temp_image_path = temp.name
 
-# Draw the feedback and flip the window
-feedback.draw()
-win.flip()
+    # Create an image stimulus
+    img = visual.ImageStim(win, image=temp_image_path)
 
-# Wait for a key press to continue
-while not event.getKeys():
-    core.wait(0.01)
+    # Draw the image and flip the window
+    img.draw()
+    win.flip()
+
+    # Wait for a key press
+    while True:
+        keys = event.getKeys(keyList=['left', 'right'])
+        if 'left' in keys:  # if left arrow is pressed
+            channel_status = 'good'
+            break
+        elif 'right' in keys:  # if right arrow is pressed
+            channel_status = 'bad'
+            break
+        core.wait(0.01)
+
+    # Determine if the user's response is correct and provide feedback 
+    if (channel_status == "bad" and selected_channel in bad_channels) or (channel_status == "good" and selected_channel in good_channels):
+        feedback_text = "Yes, you are right ! [Space bar] to continue."
+        feedback_color = 'green'
+        classification_results.append(1)
+    elif (channel_status == "bad" and selected_channel in good_channels) or (channel_status == "good" and selected_channel in bad_channels):
+        feedback_text = "No, you are wrong. [Space bar] to continue."
+        feedback_color = 'red'
+        classification_results.append(0)
+    else:
+        feedback_text = "The channel status is not valid."
+        feedback_color = 'white'
+
+    # Create a text stimulus for the feedback
+    feedback = visual.TextStim(win, text=feedback_text, height=1, color=feedback_color)
+
+    # Draw the feedback and flip the window
+    feedback.draw()
+    win.flip()
+
+    # Wait for a key press to continue
+    while not event.getKeys():
+        core.wait(0.01)
 
 # Close the window
 win.close()
 
 print(classification_results)
+
 # %%
