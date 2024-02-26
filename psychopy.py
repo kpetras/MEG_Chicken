@@ -1,6 +1,6 @@
 # %%
 # Import packages 
-from psychopy import visual, core
+from psychopy import visual, event, core
 import matplotlib.pyplot as plt
 import numpy as np
 import mne
@@ -8,7 +8,7 @@ import random
 import tempfile
 
 # %%
-#Load, downsample the data and label channels
+# Load, downsample the data and label channels
 # Load EEG data
 path = '/Users/coline/Desktop/Internship/03TPZ5_session2_run01.fif'
 raw = mne.io.read_raw_fif(path, preload=True, allow_maxshield=True)
@@ -56,18 +56,58 @@ with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp:
 # Create a window
 win = visual.Window([800,600], monitor="testMonitor", units="deg")
 
+# Create a text stimulus for the instructions
+instructions = visual.TextStim(win, text="Welcome in this EEG classification task ! EEG channels will be displayed on the screen. Press right arrow if you think it is a bad channel and left arrow for a good channel.", height=1)
+
+# Draw the instructions and flip the window
+instructions.draw()
+win.flip()
+
+# Wait for a key press to continue
+while not event.getKeys():
+    core.wait(0.01)
+
 # Create an image stimulus
 img = visual.ImageStim(win, image=temp_image_path)
 
-# Draw the image
+# Draw the image and flip the window
 img.draw()
-
-# Flip the window
 win.flip()
 
-# Keep the window open for 5 seconds
-core.wait(5)
+# Wait for a key press
+while True:
+    keys = event.getKeys(keyList=['left', 'right'])
+    if 'left' in keys:  # if left arrow is pressed
+        channel_status = 'good'
+        break
+    elif 'right' in keys:  # if right arrow is pressed
+        channel_status = 'bad'
+        break
+    core.wait(0.01)
+
+# Determine if the user's response is correct and provide feedback 
+if (channel_status == "bad" and selected_channel in bad_channels) or (channel_status == "good" and selected_channel in good_channels):
+    feedback_text = "Yes, you are right!"
+    classification_results.append(1)
+elif (channel_status == "bad" and selected_channel in good_channels) or (channel_status == "good" and selected_channel in bad_channels):
+    feedback_text = "No, you are wrong."
+    classification_results.append(0)
+else:
+    feedback_text = "The channel status is not valid."
+
+# Create a text stimulus for the feedback
+feedback = visual.TextStim(win, text=feedback_text, height=1)
+
+# Draw the feedback and flip the window
+feedback.draw()
+win.flip()
+
+# Wait for a key press to continue
+while not event.getKeys():
+    core.wait(0.01)
 
 # Close the window
 win.close()
 
+print(classification_results)
+# %%
