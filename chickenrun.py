@@ -92,9 +92,10 @@ for i in range(10):
         keys = event.getKeys(keyList=['left', 'right', 'escape'])
         if 'escape' in keys:  # if escape is pressed
             logging.flush()
+            core.rush(False)
+            filename = filename+'aborted'
             win.close()
             core.quit()
-            sys.exit()
             break 
         elif 'left' in keys:  # if left arrow is pressed 
             participant_response = 'good'
