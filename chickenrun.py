@@ -1,24 +1,16 @@
 # %%
 # Import packages 
-from psychopy import visual, event, core
-import matplotlib.pyplot as plt
+from psychopy import visual, event, core, logging, data, gui
 import numpy as np
 import mne
 import random
 import tempfile
+import time 
+import matplotlib.pyplot as plt
 
-# %%
-# Load, downsample the data and label channels
-# Load EEG data
-path = '/Users/coline/Desktop/Internship/03TPZ5_session2_run01.fif'
-raw = mne.io.read_raw_fif(path, preload=True, allow_maxshield=True)
-
-# Downsample the data 
-raw_resampled = raw.copy().resample(250, npad="auto")
-
-# Add channels to the list of "bad datas" 
-channels_to_mark_as_bad = ['MEG0332','MEG1022','MEG1143','MEG1242','MEG1333','MEG1433','MEG2013','MEG2023','MEG2413','MEG2623','MEG0121','MEG1931']
-raw_resampled.info['bads'].extend(channels_to_mark_as_bad)
+# Load the data
+datapath = '/Users/coline/Desktop/Internship/tempfile.fif'
+raw = mne.io.read_raw_fif(datapath, preload=True, allow_maxshield=True)
 
 # Define channels
 all_channels = raw.info['ch_names']
@@ -28,18 +20,31 @@ good_channels = [ch for ch in all_channels if ch not in bad_channels]
 # %%
 # First block : assess a single channel 
 # Record the results 
+filepath = '/Users/coline/Desktop/Internship/data'
 classification_results = []
+
+dlg = gui.Dlg(title="User Input")
+dlg.addField('ParticipantID:')
+dlg.addField('Experience: Do you have experience with EEG data? (yes/no)')
+ok_data = dlg.show() # display dialog box and wait for user to input data
+if dlg.OK: # if user clicks OK
+    participantID = ok_data[0]
+    experience = ok_data[1]
+else: # if user clicks Cancel or closes the dialog box
+    core.quit() # exit PsychoPy
+filename =(filepath + 'ID' + str(participantID) +  
+                        "time" + time.strftime("%Y%m%d-%H%M"))
+logFile = logging.LogFile(filename + ".log", level=logging.DEBUG, filemode='w')
+logging.console.setLevel(logging.WARNING)
 
 # Create a window
 win = visual.Window([800,600], monitor="testMonitor", units="deg", color='white')
 
 # Create a text stimulus for the instructions
-instructions1 = visual.TextStim(win, text="Welcome in this EEG classification task !", height=1.2, pos=(0, 0.2), color ='black')
-instructions2 = visual.TextStim(win, text="On this first block, EEG channels will be displayed on the screen. Press the right arrow if you think this is a bad channel and press the left arrow if you think this is a good channel. Press [Space bar] to start !", height=1, pos=(0, -0.2), color ='black')
+instructions = visual.TextStim(win, text="Welcome in this EEG classification task ! On this first block, EEG channels will be displayed on the screen. Press the right arrow if you think this is a bad channel and press the left arrow if you think this is a good channel. Press [Space bar] to start !", height=1, pos=(0, 0.2), color ='black')
 
 # Draw the instructions and flip the window
-instructions1.draw()
-instructions2.draw()
+instructions.draw()
 win.flip()
 
 # Wait for a key press to continue
@@ -69,6 +74,9 @@ for i in range(10):
     with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp:
         plt.savefig(temp.name)
         temp_image_path = temp.name
+    
+    # Close the figure
+    plt.close()
 
     # Create an image stimulus
     img = visual.ImageStim(win, image=temp_image_path)
@@ -76,27 +84,41 @@ for i in range(10):
     # Draw the image and flip the window
     img.draw()
     win.flip()
+    
+    start_time = core.getTime()  # Get the start time
 
     # Wait for a key press
     while True:
-        keys = event.getKeys(keyList=['left', 'right'])
-        if 'left' in keys:  # if left arrow is pressed
-            channel_status = 'good'
+        keys = event.getKeys(keyList=['left', 'right', 'escape'])
+        if 'escape' in keys:  # if escape is pressed
+            logging.flush()
+            win.close()
+            core.quit()
+            sys.exit()
+            break 
+        elif 'left' in keys:  # if left arrow is pressed 
+            participant_response = 'good'
+            response_time = core.getTime() - start_time  # Calculate the response time
+            logging.log(level=logging.DATA, msg=f'good, {response_time}')
             break
         elif 'right' in keys:  # if right arrow is pressed
-            channel_status = 'bad'
+            participant_response = 'bad'
+            response_time = core.getTime() - start_time  # Calculate the response time
+            logging.log(level=logging.DATA,  msg=f'bad, {response_time}')
             break
         core.wait(0.01)
 
     # Determine if the user's response is correct and provide feedback 
-    if (channel_status == "bad" and selected_channel in bad_channels) or (channel_status == "good" and selected_channel in good_channels):
+    if (participant_response == "bad" and selected_channel in bad_channels) or (participant_response == "good" and selected_channel in good_channels):
         feedback_text = "Yes, you are right ! [Space bar] to continue."
         feedback_color = 'green'
         classification_results.append(1)
-    elif (channel_status == "bad" and selected_channel in good_channels) or (channel_status == "good" and selected_channel in bad_channels):
+        logging.log(level=logging.DATA, msg='correct')
+    elif (participant_response == "bad" and selected_channel in good_channels) or (participant_response == "good" and selected_channel in bad_channels):
         feedback_text = "No, you are wrong. [Space bar] to continue."
         feedback_color = 'red'
         classification_results.append(0)
+        logging.log(level=logging.DATA, msg='incorrect')
     else:
         feedback_text = "The channel status is not valid."
         feedback_color = 'white'
@@ -114,6 +136,7 @@ for i in range(10):
 
 # Close the window
 win.close()
+core.quit()
 
 print(classification_results)
 

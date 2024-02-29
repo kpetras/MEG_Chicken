@@ -20,6 +20,7 @@ all_channels = raw.info['ch_names']
 bad_channels = raw.info['bads']
 good_channels = [ch for ch in all_channels if ch not in bad_channels]
 
+# %%
 # Select a random channel from all channels
 selected_channel = np.random.choice(all_channels)
 
@@ -55,4 +56,3 @@ for i in range(num_samples):
 # Fermer la fenêtre PsychoPy à la fin
 win.close()
 
-# %%
