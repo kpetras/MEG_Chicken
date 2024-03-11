@@ -53,6 +53,12 @@ win.flip()
 # Wait for a key press to continue
 while not event.getKeys():
     core.wait(0.01)
+    
+# list of all channels
+
+# list of starting time
+
+number_samples = 500
 
 # Loop over 10 iterations
 for i in range(10):
@@ -63,11 +69,11 @@ for i in range(10):
     data, times = raw[selected_channel]
 
     # Select a specific time range from the data
-    datatimes = data[0, 2000:4000]
-    times = times[2000:4000]
+    datatimes = data[0, 2000:2500]
+    times = times[2000:2500]
 
     # Plot the seleted channel
-    plt.figure(figsize=(8, 4))
+    plt.figure(figsize=(16, 4))
     plt.plot(times, datatimes)
     plt.xlabel('Time (s)')
     plt.ylabel('Amplitude (uV)')
@@ -117,12 +123,12 @@ for i in range(10):
         feedback_text = "Yes, you are right ! [Space bar] to continue."
         feedback_color = 'green'
         classification_results.append(1)
-        logging.log(level=logging.DATA, msg='correct')
+        logging.log(level=logging.DATA, msg='right')
     elif (participant_response == "bad" and selected_channel in good_channels) or (participant_response == "good" and selected_channel in bad_channels):
         feedback_text = "No, you are wrong. [Space bar] to continue."
         feedback_color = 'red'
         classification_results.append(0)
-        logging.log(level=logging.DATA, msg='incorrect')
+        logging.log(level=logging.DATA, msg='wrong')
     else:
         feedback_text = "The channel status is not valid."
         feedback_color = 'white'
@@ -164,16 +170,18 @@ responses = df['2']
 
 # Drop rows with missing values, if any
 responses.dropna(inplace=True)
+print(responses)
 
 # Filter out the rows that contain 'correct' or 'incorrect'
-responses = responses[responses.str.contains('correct|incorrect')]
+# responses = responses[responses.str.contains('right|wrong')]
+responses = responses[(responses == 'right') | (responses == 'wrong')]
 
 # Count the number of correct and incorrect responses
-num_total_responses = responses.str.contains('correct').sum()
-num_incorrect_responses = responses.str.contains('incorrect').sum()
-num_correct_responses = num_total_responses - num_incorrect_responses
+num_correct_responses = len(responses[(responses == 'right')])
+num_incorrect_responses = len(responses[(responses == 'wrong')])
+# num_correct_responses = responses.str.contains('right').sum()
+# num_incorrect_responses = responses.str.contains('wrong').sum()
 
-print(f'Number of total responses: {num_total_responses}')
 print(f'Number of incorrect responses: {num_incorrect_responses}')
 print(f'Number of correct responses: {num_correct_responses}')
 
