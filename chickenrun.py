@@ -7,6 +7,8 @@ import random
 import tempfile
 import time 
 import matplotlib.pyplot as plt
+import os
+import pandas as pd
 
 # Load the data
 datapath = '/Users/coline/Desktop/Internship/tempfile.fif'
@@ -153,14 +155,26 @@ if os.path.getsize(filename + ".log") > 0:
     # Print the DataFrame
     print(df)
 
-    # Filter the DataFrame for correct and incorrect responses
-    responses = df.loc[(df[1] == 'DATA') & (df[2].str.contains('correct|incorrect'))]
-
-    # Print the responses
-    print(responses)
-
 else:
     print("Log file is empty.")
+
+# Extract the responses
+responses = df[2]
+
+# Drop rows with missing values, if any
+responses.dropna(inplace=True)
+
+# Filter out the rows that contain 'correct' or 'incorrect'
+responses = responses[responses.str.contains('correct|incorrect')]
+
+# Count the number of correct and incorrect responses
+num_total_responses = responses.str.contains('correct').sum()
+num_incorrect_responses = responses.str.contains('incorrect').sum()
+num_correct_responses = num_total_responses - num_incorrect_responses
+
+print(f'Number of total responses: {num_total_responses}')
+print(f'Number of incorrect responses: {num_incorrect_responses}')
+print(f'Number of correct responses: {num_correct_responses}')
 
 # Close the window
 win.close()
