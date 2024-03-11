@@ -39,6 +39,7 @@ filename =(filepath + 'ID' + str(participantID) +
 logFile = logging.LogFile(filename + ".log", level=logging.DEBUG, filemode='w')
 logging.console.setLevel(logging.WARNING)
 
+# %%
 # Create a window
 win = visual.Window([800,600], monitor="testMonitor", units="deg", color='white')
 
@@ -159,7 +160,7 @@ else:
     print("Log file is empty.")
 
 # Extract the responses
-responses = df[2]
+responses = df['2']
 
 # Drop rows with missing values, if any
 responses.dropna(inplace=True)
