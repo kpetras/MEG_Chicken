@@ -135,10 +135,36 @@ for i in range(10):
     while not event.getKeys():
         core.wait(0.01)
 
+# Flush the log messages to the file
+logging.flush()
+
+# %%
+# Check if the log file is not empty
+if os.path.getsize(filename + ".log") > 0:
+    # Read the log file
+    log_data = pd.read_csv(filename + ".log", sep="\t", header=None)
+
+    # Write the data to a CSV file
+    log_data.to_csv(filename + ".csv", index=False, sep=",")
+
+    # Read the CSV file into a DataFrame
+    df = pd.read_csv(filename + ".csv", delimiter = ",")
+
+    # Print the DataFrame
+    print(df)
+
+    # Filter the DataFrame for correct and incorrect responses
+    responses = df.loc[(df[1] == 'DATA') & (df[2].str.contains('correct|incorrect'))]
+
+    # Print the responses
+    print(responses)
+
+else:
+    print("Log file is empty.")
+
 # Close the window
 win.close()
 core.quit()
 
 print(classification_results)
 
-# %%
