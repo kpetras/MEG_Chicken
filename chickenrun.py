@@ -41,7 +41,7 @@ logging.console.setLevel(logging.WARNING)
 
 # %%
 # Create a window
-win = visual.Window([800,600], monitor="testMonitor", units="deg", color='white')
+win = visual.Window([1360,750], monitor="testMonitor", units="deg", color='white')
 
 # Create a text stimulus for the instructions
 instructions = visual.TextStim(win, text="Welcome in this EEG classification task ! On this first block, EEG channels will be displayed on the screen. Press the right arrow if you think this is a bad channel and press the left arrow if you think this is a good channel. Press [Space bar] to start !", height=1, pos=(0, 0.2), color ='black')
@@ -53,17 +53,28 @@ win.flip()
 # Wait for a key press to continue
 while not event.getKeys():
     core.wait(0.01)
-    
-# list of all channels
 
-# list of starting time
+# Create a list of dfferent starting time
+# Get the total number of time points
+total_times = len(raw.times)
 
-number_samples = 500
+# Get the sampling rate from the raw object
+fs = raw.info['sfreq']
+# Calculate the number of samples in a 2-second segment
+number_samples = int(2 * fs)
+# Calculate the number of possible starting times
+num_start_times = total_times - number_samples
+
+# Create a list of possible starting times
+start_times = list(range(num_start_times))
 
 # Loop over 10 iterations
 for i in range(10):
     # Select a random channel
     selected_channel = random.choice(all_channels)
+
+    # Select a random starting time
+    start_time = random.choice(start_times)
 
     # Get the data for the selected channel
     data, times = raw[selected_channel]
@@ -123,12 +134,12 @@ for i in range(10):
         feedback_text = "Yes, you are right ! [Space bar] to continue."
         feedback_color = 'green'
         classification_results.append(1)
-        logging.log(level=logging.DATA, msg='right')
+        logging.log(level=logging.DATA, msg='correct')
     elif (participant_response == "bad" and selected_channel in good_channels) or (participant_response == "good" and selected_channel in bad_channels):
         feedback_text = "No, you are wrong. [Space bar] to continue."
         feedback_color = 'red'
         classification_results.append(0)
-        logging.log(level=logging.DATA, msg='wrong')
+        logging.log(level=logging.DATA, msg='incorrect')
     else:
         feedback_text = "The channel status is not valid."
         feedback_color = 'white'
@@ -170,17 +181,14 @@ responses = df['2']
 
 # Drop rows with missing values, if any
 responses.dropna(inplace=True)
-print(responses)
 
 # Filter out the rows that contain 'correct' or 'incorrect'
 # responses = responses[responses.str.contains('right|wrong')]
-responses = responses[(responses == 'right') | (responses == 'wrong')]
+responses = responses[(responses == 'correct') | (responses == 'incorrect')]
 
 # Count the number of correct and incorrect responses
-num_correct_responses = len(responses[(responses == 'right')])
-num_incorrect_responses = len(responses[(responses == 'wrong')])
-# num_correct_responses = responses.str.contains('right').sum()
-# num_incorrect_responses = responses.str.contains('wrong').sum()
+num_correct_responses = len(responses[(responses == 'correct')])
+num_incorrect_responses = len(responses[(responses == 'incorrect')])
 
 print(f'Number of incorrect responses: {num_incorrect_responses}')
 print(f'Number of correct responses: {num_correct_responses}')
