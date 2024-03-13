@@ -177,8 +177,11 @@ responses = df['2']
 responses.dropna(inplace=True)
 
 # Filter out the rows that contain 'correct' or 'incorrect'
-# responses = responses[responses.str.contains('right|wrong')]
 responses = responses[(responses == 'correct') | (responses == 'incorrect')]
+
+# Convert the filtered responses to a list
+responses_list = responses.tolist()
+print(f'List of responses: {responses_list}')
 
 # Count the number of correct and incorrect responses
 num_correct_responses = len(responses[(responses == 'correct')])
