@@ -64,6 +64,8 @@ fs = 250
 number_samples = int(2 * fs)
 
 # Loop over 10 iterations
+total_trials = 10
+
 for i in range(10):
     # Select a random channel
     selected_channel = random.choice(all_channels)
@@ -128,12 +130,10 @@ for i in range(10):
     if (participant_response == "bad" and selected_channel in bad_channels) or (participant_response == "good" and selected_channel in good_channels):
         feedback_text = "Yes, you are right ! [Space bar] to continue."
         feedback_color = 'green'
-        classification_results.append(1)
         logging.log(level=logging.DATA, msg='correct')
     elif (participant_response == "bad" and selected_channel in good_channels) or (participant_response == "good" and selected_channel in bad_channels):
         feedback_text = "No, you are wrong. [Space bar] to continue."
         feedback_color = 'red'
-        classification_results.append(0)
         logging.log(level=logging.DATA, msg='incorrect')
     else:
         feedback_text = "The channel status is not valid."
@@ -153,7 +153,6 @@ for i in range(10):
 # Flush the log messages to the file
 logging.flush()
 
-# %%
 # Check if the log file is not empty
 if os.path.getsize(filename + ".log") > 0:
     # Read the log file
@@ -188,7 +187,27 @@ num_incorrect_responses = len(responses[(responses == 'incorrect')])
 print(f'Number of incorrect responses: {num_incorrect_responses}')
 print(f'Number of correct responses: {num_correct_responses}')
 
+# Calculate the number of trials in each half
+half_trials = total_trials // 2
+
+# Count the number of correct responses for the first half and the second half
+first_half_correct = len(responses[:half_trials][responses[:half_trials] == 'correct'])
+second_half_correct = len(responses[half_trials:][responses[half_trials:] == 'correct'])
+
+# Calculate the percentage of correct responses
+first_half_percentage = (first_half_correct / half_trials) * 100
+second_half_percentage = (second_half_correct / half_trials) * 100
+
+# Create a DataFrame with the percentages
+df_percentages = pd.DataFrame({'Trials': ['First Half', 'Second Half'], 'Percentage of Correct Responses': [first_half_percentage, second_half_percentage]})
+
+# Plot a bar chart with the percentages
+df_percentages.plot(x='Trials', y='Percentage of Correct Responses', kind='bar', legend=False)
+plt.ylabel('Percentage of Correct Responses')
+plt.title('Percentage of Correct Responses for the First Half and the Second Half of Trials')
+plt.ylim(0, 100)
+plt.show()
+
 # Close the window
 win.close()
 core.quit()
-
