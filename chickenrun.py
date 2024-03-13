@@ -23,7 +23,6 @@ good_channels = [ch for ch in all_channels if ch not in bad_channels]
 # First block : assess a single channel 
 # Record the results 
 filepath = '/Users/coline/Desktop/Internship/data'
-classification_results = []
 
 dlg = gui.Dlg(title="User Input")
 dlg.addField('ParticipantID:')
@@ -59,29 +58,25 @@ while not event.getKeys():
 total_times = len(raw.times)
 
 # Get the sampling rate from the raw object
-fs = raw.info['sfreq']
+fs = 250
+
 # Calculate the number of samples in a 2-second segment
 number_samples = int(2 * fs)
-# Calculate the number of possible starting times
-num_start_times = total_times - number_samples
-
-# Create a list of possible starting times
-start_times = list(range(num_start_times))
 
 # Loop over 10 iterations
 for i in range(10):
     # Select a random channel
     selected_channel = random.choice(all_channels)
 
-    # Select a random starting time
-    start_time = random.choice(start_times)
-
     # Get the data for the selected channel
     data, times = raw[selected_channel]
 
-    # Select a specific time range from the data
-    datatimes = data[0, 2000:2500]
-    times = times[2000:2500]
+        # Select a random start point for the 2-second segment
+    start_sample = random.randint(0, len(data[0]) - number_samples)
+
+    # Select the 2-second segment from the data
+    datatimes = data[0, start_sample:start_sample + number_samples]
+    times = times[start_sample:start_sample + number_samples]
 
     # Plot the seleted channel
     plt.figure(figsize=(16, 4))
@@ -196,6 +191,4 @@ print(f'Number of correct responses: {num_correct_responses}')
 # Close the window
 win.close()
 core.quit()
-
-print(classification_results)
 
