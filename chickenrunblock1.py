@@ -73,7 +73,7 @@ for i in range(10):
     # Get the data for the selected channel
     data, times = raw[selected_channel]
 
-        # Select a random start point for the 2-second segment
+    # Select a random start point for the 2-second segment
     start_sample = random.randint(0, len(data[0]) - number_samples)
 
     # Select the 2-second segment from the data

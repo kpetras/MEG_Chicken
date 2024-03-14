@@ -33,18 +33,18 @@ raw.plot(n_channels=42, duration=5)
 
 # Define a mapping from channel names to new channel types
 channel_types = {
-    'Lower VEOG': 'eog', 
-    'Upper VEOG': 'eog', 
-    'Left HEOG': 'eog', 
-    'Right HEOG': 'eog', 
-    'Offline reference': 'misc'
+   'Lower VEOG': 'eog', 
+   'Upper VEOG': 'eog',
+   'Left HEOG': 'eog', 
+   'Right HEOG': 'eog', 
+   'Offline reference': 'misc'
 }
 
 # Set the channel types
 raw.set_channel_types(channel_types)
 
 # Set the electrode montage
-raw.set_montage('standard_1005')  
+raw.set_montage('standard_1020')  
 
 # Run ICA with runica method
 ica = mne.preprocessing.ICA(n_components=37, method='infomax')
