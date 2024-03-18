@@ -155,7 +155,7 @@ for i in range(total_trials):
                 response_time = core.getTime() - start_time  # Calculate the response time
                 logging.log(level=logging.DATA,  msg=f'bad, {response_time}')
                 break
-            core.wait(0.01)
+            
 
         # If a classification was made, break the loop to move to the next channel
         if participant_response is not None:
