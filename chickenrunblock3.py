@@ -77,7 +77,7 @@ bad_components = [2, 5, 31]
 component_labels = {i: 'bad' if i in bad_components else 'good' for i in range(ica.n_components_)}
 
 # %%
-# Third block : assess ICAs data along with topoplots
+# Third block : assess ICAs data along with all the topoplots
 
 # Record the results 
 filepath = '/Users/coline/Desktop/Internship/data'
@@ -168,6 +168,43 @@ else:
     feedback.text = f'You did not identify any bad components correctly. These are the ones you missed: {missed_answers}. These are the incorrect ones: {incorrect_answers}'
 feedback.draw()
 win.flip()
+
+# Wait for a space press before closing the window
+while True:
+    if 'space' in event.getKeys():
+        break
+    core.wait(0.1)
+
+# New task : assess ICAs data with topoplots one by one
+
+# Select 5 random components
+selected_components = random.sample(components, 5)
+
+# Iterate over the components
+for i, component in enumerate(selected_components):
+    # Display the component
+    component.draw()
+    win.flip()
+
+    # Wait for a key press
+    while True:
+        keys = event.getKeys()
+        if 'left' in keys:
+            participant_response = 'good'
+            break
+        elif 'right' in keys:
+            participant_response = 'bad'
+            break
+        core.wait(0.1)
+
+    # Check the participant's response and provide feedback
+    if (i in bad_components and participant_response == 'bad') or (i not in bad_components and participant_response == 'good'):
+        feedback.text = 'Correct'
+    else:
+        feedback.text = 'Incorrect'
+    feedback.draw()
+    win.flip()
+    core.wait(2)  # Wait for 2 seconds before moving to the next component
 
 # Wait for a space press before closing the window
 while True:
