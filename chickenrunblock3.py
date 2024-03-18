@@ -4,9 +4,10 @@ import mne
 from mne.preprocessing import ICA
 import numpy as np
 import matplotlib.pyplot as plt
-from psychopy import visual, event, core, data, gui
+from psychopy import visual, event, core, logging, data, gui
 import os
 import tempfile
+import time
 
 # Get the path to the home directory
 home_dir = os.path.expanduser('~')
@@ -21,11 +22,10 @@ image_dir = os.path.join(home_dir, new_dir_name)
 os.makedirs(image_dir, exist_ok=True)
 
 # %%
+# Load and label data 
+
 # Load MATLAB file
 mat_data = loadmat('/Users/coline/Desktop/datamatlab/SO_02_00_S01_T00_compdat.mat')
-
-# %%
-# Third block : assess ICAs data along topoplots
 
 # Plot the topoplots of the ICAs components 
 # Extract the data and channel names
@@ -68,7 +68,7 @@ ica.fit(raw)
 
 # Plot components to review and identify artifacts
 #ica.plot_components()
-# %%
+
 # Label the components
 # Define the bad components
 bad_components = [2, 5, 31]
@@ -77,11 +77,38 @@ bad_components = [2, 5, 31]
 component_labels = {i: 'bad' if i in bad_components else 'good' for i in range(ica.n_components_)}
 
 # %%
-# Create a window
+# Third block : assess ICAs data along with topoplots
+
+# Record the results 
+filepath = '/Users/coline/Desktop/Internship/data'
+
+dlg = gui.Dlg(title="User Input")
+dlg.addField('ParticipantID:')
+dlg.addField('Experience: Do you have experience with EEG data? (yes/no)')
+ok_data = dlg.show() # display dialog box and wait for user to input data
+if dlg.OK: # if user clicks OK
+    participantID = ok_data[0]
+    experience = ok_data[1]
+else: # if user clicks Cancel or closes the dialog box
+    core.quit() # exit PsychoPy
+filename =(filepath + 'ID' + str(participantID) +  
+                        "time" + time.strftime("%Y%m%d-%H%M"))
+logFile = logging.LogFile(filename + ".log", level=logging.DEBUG, filemode='w')
+logging.console.setLevel(logging.WARNING)
+
+# %%# Create a window
 win = visual.Window([900,750], monitor="testMonitor", units="deg", color='white') # Adjust the size as needed
 
-# Create a mouse object
-mouse = event.Mouse(win=win)
+# Create a text stimulus for the instructions
+instructions = visual.TextStim(win, text="Welcome in this EEG classification task ! On this first block, EEG channels will be displayed on the screen. Press the right arrow if you think this is a bad channel and press the left arrow if you think this is a good channel. Press [Space bar] to start !", height=1, pos=(0, 0.2), color ='black')
+
+# Draw the instructions and flip the window
+instructions.draw()
+win.flip()
+
+# Wait for a key press to continue
+while not event.getKeys():
+    core.wait(0.01)
 
 # Create a list of visual.ImageStim objects for the components
 components = []
@@ -98,7 +125,7 @@ for i in range(ica.n_components_):
     x = (i % num_cols - num_cols / 2 + 0.5) * size_factor  # Spread the images across the x-axis
     y = -(i // num_cols - num_rows / 2 + 0.5) * size_factor  # Spread the images across the y-axis
     components.append(visual.ImageStim(win, image=image_path, pos=(x, y), size=image_size))
-     
+
 # Main event loop
 while True:
     # Draw the components
@@ -108,32 +135,44 @@ while True:
     # Update the window
     win.flip()
 
-    # Check for mouse clicks
-    if mouse.getPressed()[0]:  # If the left mouse button is pressed
-        # Get the position of the mouse
-        mouse_pos = mouse.getPos()
-
-        # Determine which component was clicked on
-        clicked_component = None
-        for i, component in enumerate(components):
-            if component.contains(mouse_pos):
-                clicked_component = i
-                break
-
     # Check for space bar press
     keys = event.getKeys()
     if 'space' in keys:
         break
 
-# If a component was clicked on, provide feedback
-if clicked_component is not None:
-    feedback = visual.TextStim(win, text='', color='black')
-    if clicked_component in bad_components:
-        feedback.text = 'Correct, this is a bad component.'
-    else:
-        feedback.text = 'Incorrect, this is a good component.'
-    feedback.draw()
-    win.flip()
-    core.wait(2)  # Wait for 2 seconds before closing the window
+# Create a dialog box for the participant to enter the bad components
+dlg = gui.Dlg(title="Bad Components")
+dlg.addField('Enter the numbers of the bad components, separated by commas:')
+ok_data = dlg.show()  # show dialog and wait for OK or Cancel
+if dlg.OK:  # or if ok_data is not None
+    participant_bad_components = [int(num) for num in ok_data[0].split(',')]  # Convert the input to a list of integers
+else:
+    print('User cancelled.')
+
+# Compare the participant's input with the actual bad components and provide feedback
+feedback = visual.TextStim(win, text='', color='black')
+correct_answers = set(participant_bad_components) & set(bad_components)
+incorrect_answers = set(participant_bad_components) - set(bad_components)
+missed_answers = set(bad_components) - set(participant_bad_components)
+
+# Log the results
+logging.info(f'Number of correct answers: {len(correct_answers)}')
+logging.info(f'Number of incorrect answers: {len(incorrect_answers)}')
+logging.info(f'Number of missed answers: {len(missed_answers)}')
+
+if correct_answers and not incorrect_answers and not missed_answers:
+    feedback.text = f'Correct, these are the bad components you identified correctly: {correct_answers}'
+elif correct_answers:
+    feedback.text = f'Partially correct, these are the bad components you identified correctly: {correct_answers}. These are the ones you missed: {missed_answers}. These are the incorrect ones: {incorrect_answers}'
+else:
+    feedback.text = f'You did not identify any bad components correctly. These are the ones you missed: {missed_answers}. These are the incorrect ones: {incorrect_answers}'
+feedback.draw()
+win.flip()
+
+# Wait for a space press before closing the window
+while True:
+    if 'space' in event.getKeys():
+        break
+    core.wait(0.1)
 
 win.close()
