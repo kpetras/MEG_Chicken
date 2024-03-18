@@ -84,7 +84,7 @@ filepath = '/Users/coline/Desktop/Internship/data'
 
 dlg = gui.Dlg(title="User Input")
 dlg.addField('ParticipantID:')
-dlg.addField('Experience: Do you have experience with EEG data? (yes/no)')
+dlg.addField('Experience: Do you have experience with ICAs data? (yes/no)')
 ok_data = dlg.show() # display dialog box and wait for user to input data
 if dlg.OK: # if user clicks OK
     participantID = ok_data[0]
@@ -100,7 +100,7 @@ logging.console.setLevel(logging.WARNING)
 win = visual.Window([900,750], monitor="testMonitor", units="deg", color='white') # Adjust the size as needed
 
 # Create a text stimulus for the instructions
-instructions = visual.TextStim(win, text="Welcome in this EEG classification task ! On this first block, EEG channels will be displayed on the screen. Press the right arrow if you think this is a bad channel and press the left arrow if you think this is a good channel. Press [Space bar] to start !", height=1, pos=(0, 0.2), color ='black')
+instructions = visual.TextStim(win, text="Welcome in this ICAs topoplots classification task ! On this block, topoplots will be displayed on the screen. We will ask you to identify the bad ones. Look at them carefully and, when you think you identified all the bad ones, press space bar to type your answer. Press [Space bar] to start !", height=1, pos=(0, 0.2), color ='black')
 
 # Draw the instructions and flip the window
 instructions.draw()
