@@ -10,6 +10,8 @@ import pandas as pd
 from mne.io import RawArray
 import threading
 import time
+import tkinter as tk
+from tkinter import messagebox
 
 # %%
 def add_arrows(axes):
@@ -31,46 +33,54 @@ def add_arrows(axes):
                 head_width=3,
                 length_includes_head=True,
             )
-#prepare user interface
-dlg = gui.Dlg(title="Good job!")
 
 #%% Load the data
 folder  = '/Users/coline/Desktop/Internship/'
 basename = '03TPZ5_session2_run01.fif'
 datapath = folder + basename
 raw = mne.io.read_raw_fif(datapath, preload=True, allow_maxshield=True)
-#%%test
 
-# class ObservableRaw(RawArray):
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#         self.stop_thread = False
+# %% test Coline
 
-#     def set_channel_types(self, mapping):
-#         print("set_channel_types has been called")
-#         super().set_channel_types(mapping)
+# Our list of bad channels
+bad_channels_list = ['MEG0212','MEG0213','MEG0222','MEG0223']  # replace with our list of bad channels
 
-#     def set_eeg_reference(self, ref_channels, projection=False, ch_type='auto', verbose=None):
-#         print("set_eeg_reference has been called")
-#         super().set_eeg_reference(ref_channels, projection, ch_type, verbose)
+class ObservableRaw(RawArray):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.stop_thread = False
 
-# # Usage
-# raw = ObservableRaw(raw._data, raw.info)  # replace raw._data and raw.info with your raw object's data and info
+    def set_channel_types(self, mapping):
+        print("set_channel_types has been called")
+        super().set_channel_types(mapping)
 
-# # Run a separate thread to check for updates
-# def check_updates():
-#     while not raw.stop_thread:
-#         print(raw.info['bads'])  # print the updated info
-#         time.sleep(1)  # wait for 1 second
+    def set_eeg_reference(self, ref_channels, projection=False, ch_type='auto', verbose=None):
+        print("set_eeg_reference has been called")
+        super().set_eeg_reference(ref_channels, projection, ch_type, verbose)
 
-# thread = threading.Thread(target=check_updates)
-# thread.start()
+# Usage
+raw = ObservableRaw(raw._data, raw.info)  # replace raw._data and raw.info with your raw object's data and info
 
-# info = raw.plot(n_channels=15, duration=2)
-# ok_data = dlg.show() # display dialog box and wait for user to input data
+# Run a separate thread to check for updates
+def check_updates():
+    while not raw.stop_thread:
+        if raw.info['bads'] and raw.info['bads'][-1] in bad_channels_list:
+            print("Match found: ", raw.info['bads'][-1])
+            root = tk.Tk()
+            root.withdraw()  # hide the main window
+            messagebox.showinfo("Good job!", "Match found: " + raw.info['bads'][-1])
+            root.destroy()  # destroy the main window
+        else:
+            print("No match found")
+        time.sleep(1)  # wait for 1 second
 
-# # When you want to stop the thread
-# raw.stop_thread = True
+thread = threading.Thread(target=check_updates)
+thread.start()
+
+info = raw.plot(n_channels=15, duration=2)
+
+# When you want to stop the thread
+raw.stop_thread = True
 
 #%%
 
