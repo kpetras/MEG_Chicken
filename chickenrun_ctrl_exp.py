@@ -7,6 +7,7 @@ import numpy as np
 import mne
 import tkinter as tk
 import threading
+import time
 
 # %%
 # Load Laetitia's data and labels
@@ -24,7 +25,7 @@ badC_MEG_list = badC_MEG[subj][ses][run]
 badC_EEG_list = badC_EEG[subj][ses][run]
 
 # %%
-# preproc
+# filtering
 
 # filter parameters
 l_freq = 0.1 # high pass
@@ -44,11 +45,10 @@ raw_filtered.filter(
 # raw_filtered.plot(n_channels=15, duration=2)
 
 # %%
-# epoching
+# prepare the epochs
 events = mne.find_events(
     raw_filtered, stim_channel="STI101", shortest_event=5, min_duration=0.002,initial_event=True
     )
-import mne
 
 event_dict = {
     "stand": 12,
@@ -66,7 +66,116 @@ epochs_decimated = epochs.decimate(2)  # decimate to 500 Hz
 # block for the control group (no feedback)
 ####################
 
-fig = raw.plot(n_channels=1, duration=2)
+# open interactive window
+fig = raw_filtered.plot(n_channels=1, duration=2)
+
+# close the interactive window when it's done
+
+# compare and record the results
+response = raw_filtered.info['bads']
+answer = badC_MEG_list + badC_EEG_list
+
+# %%
+####################
+# block for the experimental group (with feedback)
+####################
+
+# open interactive window
+fig = raw_filtered.plot(n_channels=10, duration=2, block=False)
+
+# %%
+
+# Initialize previous_bads to an empty list
+previous_bads = []
+answer = badC_MEG_list + badC_EEG_list
+
+# Initialize a counter
+counter = 0
+
+def monitor_bads():
+    global counter
+    global previous_bads
+    
+    def display_message():
+        # Create a new Tkinter window
+        window = tk.Tk()
+        window.title("Message")
+
+        # Create a label with a large, red "False" message
+        label = tk.Label(window, text="False", fg="red", font=("Helvetica", 72))
+        label.pack()
+
+        # Update the window
+        window.update()
+
+        # Wait for 1 second
+        window.after(1000, window.destroy)
+
+        # Start the Tkinter event loop
+        window.mainloop()
+
+    try:
+        print("start loop")
+
+        while True:
+            # print("In the loop")  # Check if the loop is running
+
+            # Get the current bads
+            current_bads = fig.mne.info['bads']
+
+            # print("Current bads: ", current_bads)  # Check if current_bads is updating
+
+            # Check if the length has changed
+            if len(current_bads) != len(previous_bads):
+                # print("Length of bads has changed.")
+
+                # Find which elements were added
+                added = set(current_bads) - set(previous_bads)
+                if added:
+                    print("Added: ", added)
+                    # check if added is in the answer
+                    added_in_answer = [item for item in added if item in answer]
+                    if added_in_answer:
+                        print("Correctly added: ", added_in_answer)
+                    else:
+                        print("Incorrectly added: ", added)
+
+                # Find which elements were removed
+                removed = set(previous_bads) - set(current_bads)
+                if removed:
+                    print("Removed: ", removed)
+                    # check if removed is in the answer
+                    removed_in_answer = [item for item in removed if item not in answer]
+                    if removed_in_answer:
+                        print("Correctly removed: ", removed_in_answer)
+                    else:
+                        print("Incorrectly removed: ", removed)
+
+            # Update previous_bads
+            previous_bads = current_bads.copy()
+
+            # Increment the counter
+            counter += 1
+
+            # Break the loop after 20 iterations
+            if counter >= 20:
+                break
+
+            # Wait for a short period of time before checking again
+            time.sleep(1)
+            
+        print("end loop")
+        
+    except Exception as e:
+        print("Error in thread: ", e)  # Check if there's an error in the thread
+
+# Create a new thread that runs the monitor_bads function
+thread = threading.Thread(target=monitor_bads)
+
+# Start the new thread
+thread.start()
+
+# %%
 
 # retrieve current selection of bad channels and Annotations
 # while the figure window is still open
