@@ -130,6 +130,7 @@ def on_press(key):
 listener = keyboard.Listener(on_press=on_press)
 listener.start()
 
+ica.plot_sources(raw_filtered, block=False)
 fig = ica.plot_components(inst=raw_filtered, picks=range(n_components_per_page))
 
 
