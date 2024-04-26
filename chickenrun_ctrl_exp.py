@@ -68,9 +68,15 @@ raw_filtered.filter(
 # block for the experimental group (with feedback)
 ####################
 
+# Listen for space key press
+def on_press(key):
+    if key == keyboard.Key.space:
+        shared['space_pressed'] = True        
+    if key == keyboard.Key.tab:
+        shared['tab_pressed'] = True
 # open interactive window
-fig = raw_filtered.plot(n_channels=10, duration=2, block=False)
-
+fig, _ = raw_filtered.plot(n_channels=10, duration=2, block=False)
+print(type(fig))
 # Initialize previous_bads to an empty list
 previous_bads = []
 answer = badC_MEG_list + badC_EEG_list
@@ -79,7 +85,8 @@ answer = badC_MEG_list + badC_EEG_list
 counter = 0
 # Create a shared dictionary
 shared = {'space_pressed': False,
-          'escape_pressed': False}
+          'tab_pressed': False,
+          'done': False}
 
 # Create a new thread that runs the monitor_bads function
 thread = threading.Thread(target=hf.monitor_bads, args=(fig, answer, shared))
@@ -87,16 +94,15 @@ thread = threading.Thread(target=hf.monitor_bads, args=(fig, answer, shared))
 # Start the new thread
 thread.start()
 
-# Listen for space key press
-def on_press(key):
-    if key == keyboard.Key.space:
-        shared['space_pressed'] = True
-    if key == keyboard.Key.esc:
-        shared['escape_pressed'] = True
 
 # Start listening for key press
 listener = keyboard.Listener(on_press=on_press)
 listener.start()
+
+# while not shared.get('done', False):
+#     time.sleep(.1)
+if shared.get('done', False):    
+    print('we are here')
 
 # %%
 ####################

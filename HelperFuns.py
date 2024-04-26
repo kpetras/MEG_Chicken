@@ -3,6 +3,7 @@
 import tkinter as tk
 import time
 import threading
+from pynput import keyboard
 
 def display_message(message, color):
     # Create a new Tk root
@@ -38,6 +39,8 @@ def monitor_bads(fig, answer,shared):
     
     # Initialize a counter
     counter = 0
+    # Create a keyboard controller
+    controller = keyboard.Controller()
 
     try:
         print("start loop")
@@ -48,6 +51,7 @@ def monitor_bads(fig, answer,shared):
             # Check if the space key has been pressed
             if shared.get('space_pressed', False):
                 print("Space key pressed.")
+                shared['space_pressed'] = False
                 
                 answer_set = set(answer)
                 current_bads_set = set(current_bads)
@@ -59,7 +63,7 @@ def monitor_bads(fig, answer,shared):
                     print(f"Missing channels: {', '.join(missing_channels)}")
                 else:
                     print("All bad channels were correctly identified.")
-                break
+                
             
             # print("Current bads: ", current_bads)  # Check if current_bads is updating
 
@@ -76,10 +80,10 @@ def monitor_bads(fig, answer,shared):
 
                     if added_in_answer:
                         print("Correctly added: ", added_in_answer)
-                        #display_message("Good Job!", "green")
+                        display_message("Good Job!", "green")
                     else:
                         print("Incorrectly added: ", added)
-                        #display_message("Incorrect! Try again", "red")
+                        display_message("Incorrect! Try again", "red")
 
                 # Find which elements were removed
                 removed = set(previous_bads) - set(current_bads)
@@ -98,14 +102,22 @@ def monitor_bads(fig, answer,shared):
             # Increment the counter
             counter += 1
 
-            # Break the loop after 20 iterations
-            if shared.get('escape_pressed', False):
+            # Check if the Tab key has been pressed
+            if shared.get('tab_pressed', False):
+                print("Tab key pressed.")
+                shared['tab_pressed'] = False
+                shared['done'] = True
+                # Simulate Escape key press to close the figure
+                controller.press(keyboard.Key.esc)
+                controller.release(keyboard.Key.esc)                
                 break
+            # if counter >= 100:
+            #     break
 
             # Wait for a short period of time before checking again
             time.sleep(1)
             
-        print("end loop")
+        print("end loop")        
         
     except Exception as e:
         print("Error in thread: ", e)  # Check if there's an error in the thread
@@ -154,10 +166,10 @@ def monitor_ICs(ica, answer, shared):
 
                     if added_in_answer:
                         print("Correctly added: ", added_in_answer)
-                        #display_message("Good Job!", "green")
+                        display_message("Good Job!", "green")
                     else:
                         print("Incorrectly added: ", added)
-                        #display_message("Incorrect! Try again", "red")
+                        display_message("Incorrect! Try again", "red")
 
                 # Find which elements were removed
                 removed = set(previous_bads) - set(current_bads)
