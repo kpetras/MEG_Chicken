@@ -78,7 +78,8 @@ answer = badC_MEG_list + badC_EEG_list
 # Initialize a counter
 counter = 0
 # Create a shared dictionary
-shared = {'space_pressed': False}
+shared = {'space_pressed': False,
+          'escape_pressed': False}
 
 # Create a new thread that runs the monitor_bads function
 thread = threading.Thread(target=hf.monitor_bads, args=(fig, answer, shared))
@@ -90,6 +91,8 @@ thread.start()
 def on_press(key):
     if key == keyboard.Key.space:
         shared['space_pressed'] = True
+    if key == keyboard.Key.esc:
+        shared['escape_pressed'] = True
 
 # Start listening for key press
 listener = keyboard.Listener(on_press=on_press)
@@ -112,6 +115,7 @@ ica.fit(raw_filtered, picks = chs_type)
 
 n_components_per_page = 50 # number of components per page
 
+# %%
 # Create a shared dictionary
 shared = {'space_pressed': False}
 

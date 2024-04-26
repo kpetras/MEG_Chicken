@@ -99,7 +99,7 @@ def monitor_bads(fig, answer,shared):
             counter += 1
 
             # Break the loop after 20 iterations
-            if counter >= 20:
+            if shared.get('escape_pressed', False):
                 break
 
             # Wait for a short period of time before checking again
