@@ -35,5 +35,5 @@ def display_slides(slide_folder):
     plt.show()
 
 # Usage
-slide_folder = '/Users/coline/Desktop/slides/' 
+slide_folder = 'C:\\Users\\stagaire\\Desktop\\Coline\\MEG_Chicken\slides\\' 
 display_slides(slide_folder)
