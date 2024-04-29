@@ -65,5 +65,4 @@ def load_and_preprocess_data(path, subj, ses, run, save_path=None):
 
     return raw_filtered, badC_MEG_list, badC_EEG_list, ICA_remove_inds_list
 
-
 load_and_preprocess_data(path, subj, ses, run, save_path)
