@@ -5,7 +5,8 @@ import mne
 import os
 
 # Define the path to the raw data and the file name
-path = 'C:\\Users\\stagaire\\Desktop\\local\\data\\'  # or your specific path
+# path = 'C:\\Users\\stagaire\\Desktop\\local\\data\\'  # or your specific path
+path = 'data/'
 subj = 'FADM9A'
 ses = 'session1'
 run = 'run01.fif'
@@ -59,4 +60,4 @@ def load_and_preprocess_data(path, subj, ses, run, save_path=None):
 
     return raw_filtered
 
-load_and_preprocess_data(path, subj, ses, run, save_path)
+load_and_preprocess_data(path, subj, ses, run, 'processed_data/')

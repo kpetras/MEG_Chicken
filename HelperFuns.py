@@ -5,6 +5,7 @@ import time
 import threading
 from pynput import keyboard
 import csv
+import mne
 import os
 
 def display_message(message, color):
@@ -237,3 +238,20 @@ def monitor_ICs(ica, answer, shared):
 #         writer.writerow([hits, false_alarms, misses, correct_rejections])
 
 #     print(f"Results saved to: {results_path}")
+
+def load_preprocessed_data(data_path): 
+    """ 
+    Loads preprocessed data from a specified directory. 
+    
+    Args: 
+        data_path (str): full path to preprocessed files. 
+
+
+    Returns: 
+        mne.io.Raw: Preprocessed raw data. 
+    """ 
+    
+    fname = f"{data_path}_preprocessed-raw.fif" 
+    fname_with_path = f"{data_path}{fname}" 
+    
+    return mne.io.read_raw_fif(fname_with_path, preload=True, allow_maxshield=True) 

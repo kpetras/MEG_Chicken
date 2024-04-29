@@ -10,46 +10,21 @@ import threading
 import time
 from pynput import keyboard
 import HelperFuns as hf
+import os
+import mne
+from threading import Thread
+from pynput import keyboard
+import time
+from PyQt5.QtWidgets import QApplication
 #from slides import display_slides # Import the slide presentation function
 
 # %%
 # Load Preprocessed Data Function 
+data_path = 'processed_data/'  # Directory to save preprocessed files 
+fileList = ['FADM9A_session1_run01.fif_preprocessed-raw.fif', '03TPZ5_session2_run01.fif_preprocessed-raw.fif']
 
-def load_preprocessed_data(data_path, subj, ses, run): 
-    """ 
-    Loads preprocessed data from a specified directory. 
-    
-    Args: 
-        data_path (str): Directory path where the preprocessed files are located. 
-        subj (str): Subject identifier. 
-        ses (str): Session identifier. 
-        run (str): Run identifier. 
-
-    Returns: 
-        mne.io.Raw: Preprocessed raw data. 
-    """ 
-    
-    fname = f"{subj}_{ses}_{run}_preprocessed-raw.fif" 
-    fname_with_path = f"{data_path}{fname}" 
-    
-    return mne.io.read_raw_fif(fname_with_path, preload=True, allow_maxshield=True) 
-
-# File paths and identifiers 
-data_path = 'processed_data/' # Directory to save preprocessed files 
-subj = 'FADM9A' 
-ses = 'session1' 
-run = 'run01.fif' 
-
-# Load the preprocessed data 
-raw_filtered = load_preprocessed_data(data_path, subj, ses, run)
 
 # %%
-# Retrieve bad channels and ICA indices
-# from config import datapath, preprocpath, subjects
-from config import badC_EEG, badC_MEG, ICA_remove_inds
-badC_MEG_list = badC_MEG[subj][ses][run]
-badC_EEG_list = badC_EEG[subj][ses][run]
-ICA_remove_inds_list = ICA_remove_inds[subj][run]
 # or use ICA_remove_inds_concatRuns, but don't wanna bother with concatenation for now
 
 # %%
@@ -58,35 +33,6 @@ from slides import display_slides
 slide_folder = r'slides' 
 display_slides(slide_folder)
 
-# %%
-# # Load Laetitia's data and labels
-# path  = 'C:\\Users\\stagaire\\Desktop\\local\\data\\'
-# # path = '/Users/elizabeth/Desktop/MEGChicken/'
-# subj = 'FADM9A'
-# ses = 'session1'
-# run = 'run01.fif'
-# fname = subj + '_' + ses + '_' + run
-# fname_with_path = path + fname
-# raw = mne.io.read_raw_fif(fname_with_path, preload=True, allow_maxshield=True)
-
-# %%
-# filtering
-# # filter parameters
-# l_freq = 0.1 # high pass
-# notch_freq = 50  # notch
-# h_freq = 80  # low pass
-
-# freqs = (notch_freq, notch_freq*2, notch_freq*3, notch_freq*4)
-# raw_filtered = raw.copy().notch_filter(freqs=freqs)
-# # high pass filter
-# raw_filtered.filter(
-#     l_freq=l_freq, h_freq=None, fir_design="firwin", fir_window="hamming"
-#     )
-# # low pass filter
-# raw_filtered.filter(
-#     l_freq=None, h_freq=h_freq, fir_design="firwin", fir_window="hamming"
-#     )
-# # raw_filtered.plot(n_channels=15, duration=2)
 
 # %%
 ####################
@@ -107,40 +53,70 @@ display_slides(slide_folder)
 # block for the experimental group (with feedback)
 ####################
 
-# Listen for space key press
+
 def on_press(key):
     if key == keyboard.Key.space:
         shared['space_pressed'] = True        
     if key == keyboard.Key.tab:
         shared['tab_pressed'] = True
-# open interactive window
-fig = raw_filtered.plot(n_channels=10, duration=2, block=False)
-print(type(fig))
-# Initialize previous_bads to an empty list
-previous_bads = []
-answer = badC_MEG_list + badC_EEG_list
 
-# Initialize a counter
-counter = 0
-# Create a shared dictionary
-shared = {'space_pressed': False,
-          'tab_pressed': False,
-          'done': False}
+data_path = 'processed_data/'  # Directory to save preprocessed files 
+fileList = ['FADM9A_session1_run01.fif_preprocessed-raw.fif', '03TPZ5_session2_run01.fif_preprocessed-raw.fif']
 
-# Create a new thread that runs the monitor_bads function
-thread = threading.Thread(target=hf.monitor_bads, args=(fig, answer, shared))
+for file in fileList:
+    print('processing file: ', file)
+    # Retrieve bad channels and ICA indices
+    # from config import datapath, preprocpath, subjects
+    file_path = os.path.join(data_path, file)
+    from config import badC_EEG, badC_MEG, ICA_remove_inds
+    filePath_without_ext = os.path.splitext(file)[0]    
+    parts = filePath_without_ext.split('_')    
+    # Extract subj, ses, and run
+    subj, ses, run = parts[0], parts[1], parts[2]    
+    badC_MEG_list = badC_MEG[subj][ses][run]
+    badC_EEG_list = badC_EEG[subj][ses][run]
+    #ICA_remove_inds_list = ICA_remove_inds[subj][run]
+    # Check if the file exists before trying to load it
+    if os.path.exists(file_path):
+        # Load the preprocessed data 
+        raw_filtered = mne.io.read_raw_fif(file_path, preload=True, allow_maxshield=True)
 
-# Start the new thread
-thread.start()
+        # open interactive window
+        fig = raw_filtered.plot(n_channels=10, duration=2, block=False)
+        print(type(fig))
 
-# Start listening for key press
-listener = keyboard.Listener(on_press=on_press)
-listener.start()
+        # Initialize previous_bads to an empty list
+        previous_bads = []
+        answer = badC_MEG_list + badC_EEG_list
 
-# while not shared.get('done', False):
-#     time.sleep(.1)
-if shared.get('done', False):    
-    print('we are here')
+        # Initialize a counter
+        counter = 0
+
+        # Create a shared dictionary
+        shared = {'space_pressed': False,
+                  'tab_pressed': False,
+                  'done': False}
+
+        # Create a new thread that runs the monitor_bads function
+        thread = Thread(target=hf.monitor_bads, args=(fig, answer, shared))
+
+        # Start the new thread
+        thread.start()
+
+        # Start listening for key press
+        listener = keyboard.Listener(on_press=on_press)
+        listener.start()
+
+        # Wait for the thread to finish
+        while not shared['done']:
+            # Process the GUI event loop
+            QApplication.processEvents()
+            # Sleep for a short time to reduce CPU usage
+            time.sleep(0.1)
+
+        print('we are here')
+    else:
+        print(f"File {file_path} does not exist.")
 
 # # After experiment, retrieve results
 # hits, false_alarms, misses, correct_rejections = hf.monitor_bads(fig, answer, shared)
@@ -149,6 +125,7 @@ if shared.get('done', False):
 # hf.save_results(subj, ses, run, hits, false_alarms, misses, correct_rejections)
 
 # %%
+print('now we are here')
 ####################
 # block for the ICA rejection
 ####################
