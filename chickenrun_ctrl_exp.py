@@ -133,7 +133,6 @@ thread = threading.Thread(target=hf.monitor_bads, args=(fig, answer, shared))
 # Start the new thread
 thread.start()
 
-
 # Start listening for key press
 listener = keyboard.Listener(on_press=on_press)
 listener.start()
@@ -142,6 +141,12 @@ listener.start()
 #     time.sleep(.1)
 if shared.get('done', False):    
     print('we are here')
+
+# After experiment, retrieve results
+hits, false_alarms, misses, correct_rejections = monitor_bads(fig, bad_channels_list, shared)
+
+# Save results
+save_results(subj, ses, run, hits, false_alarms, misses, correct_rejections)
 
 # %%
 ####################

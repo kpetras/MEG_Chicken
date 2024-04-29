@@ -4,6 +4,8 @@ import tkinter as tk
 import time
 import threading
 from pynput import keyboard
+import csv
+import os
 
 def display_message(message, color):
     # Create a new Tk root
@@ -39,6 +41,12 @@ def monitor_bads(fig, answer,shared):
     
     # Initialize a counter
     counter = 0
+
+    # Track responses
+    hits = 0
+    false_alarms = 0
+    correct_rejections = 0
+
     # Create a keyboard controller
     controller = keyboard.Controller()
 
@@ -81,9 +89,11 @@ def monitor_bads(fig, answer,shared):
                     if added_in_answer:
                         print("Correctly added: ", added_in_answer)
                         display_message("Good Job!", "green")
+                        hits += len(added_in_answer)
                     else:
                         print("Incorrectly added: ", added)
                         display_message("Incorrect! Try again", "red")
+                        false_alarms += len(added)
 
                 # Find which elements were removed
                 removed = set(previous_bads) - set(current_bads)
@@ -121,6 +131,11 @@ def monitor_bads(fig, answer,shared):
         
     except Exception as e:
         print("Error in thread: ", e)  # Check if there's an error in the thread
+    
+    misses = len(set(answer) - set(previous_bads))
+    correct_rejections = len(set(previous_bads) - set(answer))
+
+    return hits, false_alarms, misses, correct_rejections
         
 def monitor_ICs(ica, answer, shared):
     # Initialize previous_bads to an empty list
@@ -128,6 +143,11 @@ def monitor_ICs(ica, answer, shared):
     
     # Initialize a counter
     counter = 0
+
+    # Track responses
+    hits = 0
+    false_alarms = 0
+    correct_rejections = 0
 
     try:
         print("start loop")
@@ -167,9 +187,11 @@ def monitor_ICs(ica, answer, shared):
                     if added_in_answer:
                         print("Correctly added: ", added_in_answer)
                         display_message("Good Job!", "green")
+                        hits += len(added_in_answer)
                     else:
                         print("Incorrectly added: ", added)
                         display_message("Incorrect! Try again", "red")
+                        false_alarms += len(added)
 
                 # Find which elements were removed
                 removed = set(previous_bads) - set(current_bads)
@@ -199,3 +221,19 @@ def monitor_ICs(ica, answer, shared):
         
     except Exception as e:
         print("Error in thread: ", e)  # Check if there's an error in the thread
+    
+    misses = len(set(answer) - set(previous_bads))
+    correct_rejections = len(set(previous_bads) - set(answer))
+
+    return hits, false_alarms, misses, correct_rejections
+
+def save_results(subj, ses, run, hits, false_alarms, misses, correct_rejections):
+    """Saves the results to a CSV file."""
+    results_path = f"{subj}_{ses}_{run}_results.csv"
+
+    with open(results_path, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(["Hits", "False Alarms", "Misses", "Correct Rejections"])
+        writer.writerow([hits, false_alarms, misses, correct_rejections])
+
+    print(f"Results saved to: {results_path}")
