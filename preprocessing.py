@@ -24,9 +24,6 @@ def load_and_preprocess_data(path, subj, ses, run, save_path=None):
 
     Returns:
         mne.io.Raw: Preprocessed raw data.
-        list: Bad MEG channels.
-        list: Bad EEG channels.
-        list: ICA components to remove.
     """
 
     # Build the file name
@@ -51,14 +48,6 @@ def load_and_preprocess_data(path, subj, ses, run, save_path=None):
     # Low-pass filter
     raw_filtered.filter(l_freq=None, h_freq=h_freq, fir_design="firwin", fir_window="hamming")
 
-    # Retrieve bad channels and ICA indices
-    # from config import datapath, preprocpath, subjects
-    from config import badC_EEG, badC_MEG, ICA_remove_inds
-    badC_MEG_list = badC_MEG[subj][ses][run]
-    badC_EEG_list = badC_EEG[subj][ses][run]
-    ICA_remove_inds_list = ICA_remove_inds[subj][run]
-    # or use ICA_remove_inds_concatRuns, but don't wanna bother with concatenation for now
-
     # Save the preprocessed data
     if save_path:
         # Create the directory 
@@ -68,6 +57,6 @@ def load_and_preprocess_data(path, subj, ses, run, save_path=None):
         raw_filtered.save(save_file, overwrite=True)
         print(f"Preprocessed data saved to: {save_file}")
 
-    return raw_filtered, badC_MEG_list, badC_EEG_list, ICA_remove_inds_list
+    return raw_filtered
 
 load_and_preprocess_data(path, subj, ses, run, save_path)

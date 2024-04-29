@@ -12,16 +12,38 @@ from pynput import keyboard
 import HelperFuns as hf
 
 # %%
-# Load Laetitia's data and labels
-path  = 'C:\\Users\\stagaire\\Desktop\\local\\data\\'
-# path = '/Users/elizabeth/Desktop/MEGChicken/'
-subj = 'FADM9A'
-ses = 'session1'
-run = 'run01.fif'
-fname = subj + '_' + ses + '_' + run
-fname_with_path = path + fname
-raw = mne.io.read_raw_fif(fname_with_path, preload=True, allow_maxshield=True)
+# Load Preprocessed Data Function 
 
+def load_preprocessed_data(path, subj, ses, run): 
+    """ 
+    Loads preprocessed data from a specified directory. 
+    
+    Args: 
+        path (str): Directory path where the preprocessed files are located. 
+        subj (str): Subject identifier. 
+        ses (str): Session identifier. 
+        run (str): Run identifier. 
+
+    Returns: 
+        mne.io.Raw: Preprocessed raw data. 
+    """ 
+    
+    fname = f"{subj}_{ses}_{run}_preprocessed-raw.fif" 
+    fname_with_path = f"{path}{fname}" 
+    
+    return mne.io.read_raw_fif(fname_with_path, preload=True, allow_maxshield=True) 
+
+# File paths and identifiers 
+data_path = 'processed_data/' # Directory to save preprocessed files 
+subj = 'FADM9A' 
+ses = 'session1' 
+run = 'run01.fif' 
+
+# Load the preprocessed data 
+raw_filtered = load_preprocessed_data(data_path, subj, ses, run)
+
+# %%
+# Retrieve bad channels and ICA indices
 # from config import datapath, preprocpath, subjects
 from config import badC_EEG, badC_MEG, ICA_remove_inds
 badC_MEG_list = badC_MEG[subj][ses][run]
@@ -30,24 +52,34 @@ ICA_remove_inds_list = ICA_remove_inds[subj][run]
 # or use ICA_remove_inds_concatRuns, but don't wanna bother with concatenation for now
 
 # %%
+# # Load Laetitia's data and labels
+# path  = 'C:\\Users\\stagaire\\Desktop\\local\\data\\'
+# # path = '/Users/elizabeth/Desktop/MEGChicken/'
+# subj = 'FADM9A'
+# ses = 'session1'
+# run = 'run01.fif'
+# fname = subj + '_' + ses + '_' + run
+# fname_with_path = path + fname
+# raw = mne.io.read_raw_fif(fname_with_path, preload=True, allow_maxshield=True)
+
+# %%
 # filtering
+# # filter parameters
+# l_freq = 0.1 # high pass
+# notch_freq = 50  # notch
+# h_freq = 80  # low pass
 
-# filter parameters
-l_freq = 0.1 # high pass
-notch_freq = 50  # notch
-h_freq = 80  # low pass
-
-freqs = (notch_freq, notch_freq*2, notch_freq*3, notch_freq*4)
-raw_filtered = raw.copy().notch_filter(freqs=freqs)
-# high pass filter
-raw_filtered.filter(
-    l_freq=l_freq, h_freq=None, fir_design="firwin", fir_window="hamming"
-    )
-# low pass filter
-raw_filtered.filter(
-    l_freq=None, h_freq=h_freq, fir_design="firwin", fir_window="hamming"
-    )
-# raw_filtered.plot(n_channels=15, duration=2)
+# freqs = (notch_freq, notch_freq*2, notch_freq*3, notch_freq*4)
+# raw_filtered = raw.copy().notch_filter(freqs=freqs)
+# # high pass filter
+# raw_filtered.filter(
+#     l_freq=l_freq, h_freq=None, fir_design="firwin", fir_window="hamming"
+#     )
+# # low pass filter
+# raw_filtered.filter(
+#     l_freq=None, h_freq=h_freq, fir_design="firwin", fir_window="hamming"
+#     )
+# # raw_filtered.plot(n_channels=15, duration=2)
 
 # %%
 ####################
