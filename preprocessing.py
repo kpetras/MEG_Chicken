@@ -4,6 +4,7 @@ import numpy as np
 import mne
 import os
 
+# Define the path to the raw data and the file name
 path = 'C:\\Users\\stagaire\\Desktop\\local\\data\\'  # or your specific path
 subj = 'FADM9A'
 ses = 'session1'
