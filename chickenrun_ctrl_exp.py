@@ -13,7 +13,7 @@ import HelperFuns as hf
 
 # %%
 # Load Laetitia's data and labels
-path  = 'data/'
+path  = 'C:\\Users\\stagaire\\Desktop\\local\\data\\'
 # path = '/Users/elizabeth/Desktop/MEGChicken/'
 subj = 'FADM9A'
 ses = 'session1'
@@ -75,7 +75,7 @@ def on_press(key):
     if key == keyboard.Key.tab:
         shared['tab_pressed'] = True
 # open interactive window
-fig, _ = raw_filtered.plot(n_channels=10, duration=2, block=False)
+fig = raw_filtered.plot(n_channels=10, duration=2, block=False)
 print(type(fig))
 # Initialize previous_bads to an empty list
 previous_bads = []
