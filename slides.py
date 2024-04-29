@@ -1,8 +1,17 @@
+# slides.py
+
 import matplotlib.pyplot as plt
 import os
 from matplotlib.widgets import Button
 
 def display_slides(slide_folder):
+    """
+    Displays slides from a specified folder.
+    
+    Args:
+        slide_folder (str): Directory containing slides.
+        
+    """
     slides = [os.path.join(slide_folder, f) for f in sorted(os.listdir(slide_folder)) if f.endswith(('.png', '.jpg'))]
     current_slide = [0]  # Mutable object to change in nested function
 
@@ -33,7 +42,3 @@ def display_slides(slide_folder):
     bprev.on_clicked(prev_slide)
 
     plt.show()
-
-# Usage
-slide_folder = 'C:\\Users\\stagaire\\Desktop\\Coline\\MEG_Chicken\slides\\' 
-display_slides(slide_folder)

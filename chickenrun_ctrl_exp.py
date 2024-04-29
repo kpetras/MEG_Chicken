@@ -10,16 +10,17 @@ import threading
 import time
 from pynput import keyboard
 import HelperFuns as hf
+#from slides import display_slides # Import the slide presentation function
 
 # %%
 # Load Preprocessed Data Function 
 
-def load_preprocessed_data(path, subj, ses, run): 
+def load_preprocessed_data(data_path, subj, ses, run): 
     """ 
     Loads preprocessed data from a specified directory. 
     
     Args: 
-        path (str): Directory path where the preprocessed files are located. 
+        data_path (str): Directory path where the preprocessed files are located. 
         subj (str): Subject identifier. 
         ses (str): Session identifier. 
         run (str): Run identifier. 
@@ -29,7 +30,7 @@ def load_preprocessed_data(path, subj, ses, run):
     """ 
     
     fname = f"{subj}_{ses}_{run}_preprocessed-raw.fif" 
-    fname_with_path = f"{path}{fname}" 
+    fname_with_path = f"{data_path}{fname}" 
     
     return mne.io.read_raw_fif(fname_with_path, preload=True, allow_maxshield=True) 
 
@@ -50,6 +51,12 @@ badC_MEG_list = badC_MEG[subj][ses][run]
 badC_EEG_list = badC_EEG[subj][ses][run]
 ICA_remove_inds_list = ICA_remove_inds[subj][run]
 # or use ICA_remove_inds_concatRuns, but don't wanna bother with concatenation for now
+
+# %%
+# Display the slides
+from slides import display_slides
+slide_folder = r'slides' 
+display_slides(slide_folder)
 
 # %%
 # # Load Laetitia's data and labels
