@@ -2,6 +2,7 @@
 
 import numpy as np
 import mne
+import os
 
 path = 'C:\\Users\\stagaire\\Desktop\\local\\data\\'  # or your specific path
 subj = 'FADM9A'
@@ -59,6 +60,9 @@ def load_and_preprocess_data(path, subj, ses, run, save_path=None):
 
     # Save the preprocessed data
     if save_path:
+        # Create the directory 
+        os.makedirs(save_path, exist_ok=True)
+        
         save_file = f"{save_path}{fname}_preprocessed-raw.fif"
         raw_filtered.save(save_file, overwrite=True)
         print(f"Preprocessed data saved to: {save_file}")
