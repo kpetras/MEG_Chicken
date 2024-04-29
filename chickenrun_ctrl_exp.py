@@ -142,11 +142,11 @@ listener.start()
 if shared.get('done', False):    
     print('we are here')
 
-# After experiment, retrieve results
-hits, false_alarms, misses, correct_rejections = monitor_bads(fig, bad_channels_list, shared)
+# # After experiment, retrieve results
+# hits, false_alarms, misses, correct_rejections = hf.monitor_bads(fig, answer, shared)
 
-# Save results
-save_results(subj, ses, run, hits, false_alarms, misses, correct_rejections)
+# # Save results
+# hf.save_results(subj, ses, run, hits, false_alarms, misses, correct_rejections)
 
 # %%
 ####################
