@@ -9,11 +9,9 @@ import os
 # Define the path to the raw data and the file name
 path = 'C:\\Users\\stagaire\\Desktop\\Repository\\data\\'  # or your specific path
 # path = 'data/'
-subj = 'FADM9A'
-ses = 'session1'
-run = 'run02.fif'
-
-save_path = 'processed_data\\'  # Directory to save the preprocessed files
+subj = '03TPZ5'
+ses = 'session2'
+run = 'run01.fif'
 
 def load_and_preprocess_data(path, subj, ses, run, save_path = 'processed_data\\'):
     """
