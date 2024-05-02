@@ -158,8 +158,7 @@ def monitor_ICs(ica, answer, shared):
     # Track responses
     hits = 0
     false_alarms = 0
-    # correct_rejections = 0
-
+    
     # Create a keyboard controller
     controller = keyboard.Controller()
 
