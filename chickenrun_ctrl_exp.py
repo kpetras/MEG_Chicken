@@ -126,7 +126,7 @@ for file in fileList:
 
     # Save results
     hf.save_results(subj, ses, run, hits, false_alarms, misses, correct_rejections)
-
+    
 # # After experiment, retrieve results
 # hits, false_alarms, misses, correct_rejections = hf.monitor_bads(fig, answer, shared)
 

@@ -243,7 +243,7 @@ def save_results(subj, ses, run, hits, false_alarms, misses, correct_rejections)
         # Write the header
         writer.writerow(["Hits", "False Alarms", "Misses", "Correct Rejections"])
         # Write the results
-        writer.writerow([hits, false_alarms, misses, correct rejections])
+        writer.writerow([hits, false_alarms, misses, correct_rejections])
     
     print(f"Results saved to: {results_path}")
 
