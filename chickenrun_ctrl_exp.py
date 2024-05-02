@@ -16,23 +16,17 @@ from threading import Thread
 from pynput import keyboard
 import time
 from PyQt5.QtWidgets import QApplication
-#from slides import display_slides # Import the slide presentation function
 
 # %%
 # Load Preprocessed Data Function 
 data_path = 'processed_data\\'  # Directory to save preprocessed files 
 fileList = ['FADM9A_session1_run01.fif_preprocessed-raw.fif', '03TPZ5_session2_run01.fif_preprocessed-raw.fif']
 
-
-# %%
-# or use ICA_remove_inds_concatRuns, but don't wanna bother with concatenation for now
-
 # %%
 # Display the slides
 from slides import display_slides
 slide_folder = r'slides' 
 display_slides(slide_folder)
-
 
 # %%
 ####################
@@ -75,10 +69,12 @@ for file in fileList:
     badC_MEG_list = badC_MEG[subj][ses][run]
     badC_EEG_list = badC_EEG[subj][ses][run]
     #ICA_remove_inds_list = ICA_remove_inds[subj][run]
+
     # Check if the file exists before trying to load it
     if os.path.exists(file_path):
         # Load the preprocessed data 
         raw_filtered = mne.io.read_raw_fif(file_path, preload=True, allow_maxshield=True)
+        num_channels = raw_filtered.info['nchan']
 
         # open interactive window
         fig = raw_filtered.plot(n_channels=10, duration=2, block=False)
@@ -98,7 +94,7 @@ for file in fileList:
                   'hits': 0,
                   'false_alarms': 0,
                   'misses': 0,
-                  'correct_rejections': 0}
+                  'correct_rejections': num_channels}
 
         # Create a new thread that runs the monitor_bads function
         thread = Thread(target=hf.monitor_bads, args=(fig, answer, shared))
@@ -140,6 +136,9 @@ matplotlib.use('Qt5Agg')  # Make sure to use an interactive backend
 
 # Do the ICA decomposition for each sensor type
 chs_type = 'eeg' # ['mag', 'grad', 'eeg']
+# Retrieve bad channels and ICA indices
+from config import ICA_remove_inds
+ICA_remove_inds_list = ICA_remove_inds[subj][run]
 answer = ICA_remove_inds_list[chs_type]
 
 # Fit ICA component
@@ -150,7 +149,13 @@ n_components_per_page = 50 # number of components per page
 
 # %%
 # Create a shared dictionary
-shared = {'space_pressed': False}
+shared = {'space_pressed': False, 
+          'tab_pressed': False,
+          'done': False,
+          'hits': 0,
+          'false_alarms': 0,
+          'misses': 0,
+          'correct_rejections': 0}
 
 # Create a new thread that runs the monitor_bads function
 thread = threading.Thread(target=hf.monitor_ICs, args=(ica, answer, shared))
@@ -162,6 +167,8 @@ thread.start()
 def on_press(key):
     if key == keyboard.Key.space:
         shared['space_pressed'] = True
+    if key == keyboard.Key.tab:
+        shared['tab_pressed'] = True
 
 # Start listening for key press
 listener = keyboard.Listener(on_press=on_press)
@@ -170,6 +177,14 @@ listener.start()
 ica.plot_sources(raw_filtered, block=False)
 fig = ica.plot_components(inst=raw_filtered, picks=range(n_components_per_page))
 
+# After the thread has finished, get the results
+hits = shared.get('hits')
+false_alarms = shared.get('false_alarms')
+misses = shared.get('misses')
+correct_rejections = shared.get('correct_rejections')
+
+# Save results
+hf.save_results(subj, ses, run, hits, false_alarms, misses, correct_rejections)
 
 # %%
 # prepare the epochs

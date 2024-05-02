@@ -138,29 +138,30 @@ def monitor_bads(fig, answer,shared):
         print("Error in thread: ", e)  # Check if there's an error in the thread
     
     misses = len(set(answer) - set(previous_bads))
-
-    # Read num_channels from the file
-    with open('num_channels.txt', 'r') as f:
-        num_channels = int(f.read())
-    correct_rejections = num_channels - hits - false_alarms - misses
+    correct_rejections = - hits - false_alarms - misses
 
     # Store the output in the shared dict
     shared['hits'] = hits
     shared['false_alarms'] = false_alarms
     shared['misses'] = misses
-    shared['correct_rejections'] = correct_rejections
+    shared['correct_rejections'] += correct_rejections
         
 def monitor_ICs(ica, answer, shared):
+    """Monitors bad ICs, provides feedback, and stores results."""
+
     # Initialize previous_bads to an empty list
     previous_bads = []
     
     # Initialize a counter
     counter = 0
 
-    # # Track responses
+    # Track responses
     hits = 0
     false_alarms = 0
-    correct_rejections = 0
+    # correct_rejections = 0
+
+    # Create a keyboard controller
+    controller = keyboard.Controller()
 
     try:
         print("start loop")
@@ -171,6 +172,7 @@ def monitor_ICs(ica, answer, shared):
             # Check if the space key has been pressed
             if shared.get('space_pressed', False):
                 print("Space key pressed.")
+                shared['space_pressed']= False
                 
                 answer_set = set(answer)
                 current_bads_set = set(current_bads)
@@ -182,7 +184,6 @@ def monitor_ICs(ica, answer, shared):
                     print(f"Missing ICs: {', '.join(map(str, missing_ICs))}")
                 else:
                     print("All bad ICs were correctly identified.")
-                break
 
             # print("Current bads: ", current_bads)  # Check if current_bads is updating
 
@@ -199,12 +200,13 @@ def monitor_ICs(ica, answer, shared):
 
                     if added_in_answer:
                         print("Correctly added: ", added_in_answer)
-                        display_message("Good Job!", "green")
                         hits += len(added_in_answer)
+                        print(hits)
+                        display_message("Good Job!", "green")
                     else:
                         print("Incorrectly added: ", added)
-                        display_message("Incorrect! Try again", "red")
                         false_alarms += len(added)
+                        display_message("Incorrect! Try again", "red")
 
                 # Find which elements were removed
                 removed = set(previous_bads) - set(current_bads)
@@ -223,9 +225,19 @@ def monitor_ICs(ica, answer, shared):
             # Increment the counter
             counter += 1
 
-            # Break the loop after 20 iterations
-            if counter >= 20:
+            # Check if the Tab key has been pressed
+            if shared.get('tab_pressed', False):
+                print("Tab key pressed.")
+                shared['tab_pressed']= False
+                shared['done'] = True
+                # Simulate Escape key press to close the figure 
+                controller.press(keyboard.Key.esc)
+                controller.release(keyboard.Key.esc)
                 break
+
+            # # Break the loop after 20 iterations
+            # if counter >= 20:
+            #     break
 
             # Wait for a short period of time before checking again
             time.sleep(1)
@@ -236,11 +248,13 @@ def monitor_ICs(ica, answer, shared):
         print("Error in thread: ", e)  # Check if there's an error in the thread
     
     misses = len(set(answer) - set(previous_bads))
-    
-    # Read num_channels from the file
-    with open('num_channels.txt', 'r') as f:
-        num_channels = int(f.read())
-    correct_rejections = num_channels - hits - false_alarms - misses
+    #correct_rejections = - hits - false_alarms - misses
+
+    # Store the output in the shared dict
+    shared['hits'] = hits
+    shared['false_alarms'] = false_alarms
+    shared['misses'] = misses
+    #shared['correct_rejections'] += correct_rejections
 
 def save_results(subj, ses, run, hits, false_alarms, misses, correct_rejections):
     """Saves the results to a CSV file."""
