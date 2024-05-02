@@ -43,10 +43,10 @@ def monitor_bads(fig, answer,shared):
     # Initialize a counter
     counter = 0
 
-    # # Track responses
-    # hits = 0
-    # false_alarms = 0
-    # correct_rejections = 0
+    # Track responses
+    hits = 0
+    false_alarms = 0
+    correct_rejections = 0
 
     # Create a keyboard controller
     controller = keyboard.Controller()
@@ -89,12 +89,15 @@ def monitor_bads(fig, answer,shared):
 
                     if added_in_answer:
                         print("Correctly added: ", added_in_answer)
+                        hits += len(added_in_answer)
+                        print(hits)
                         display_message("Good Job!", "green")
-                        # hits += len(added_in_answer)
+
                     else:
                         print("Incorrectly added: ", added)
+                        false_alarms += len(added)
+                        print(false_alarms)
                         display_message("Incorrect! Try again", "red")
-                        # false_alarms += len(added)
 
                 # Find which elements were removed
                 removed = set(previous_bads) - set(current_bads)
@@ -133,10 +136,16 @@ def monitor_bads(fig, answer,shared):
     except Exception as e:
         print("Error in thread: ", e)  # Check if there's an error in the thread
     
-    # misses = len(set(answer) - set(previous_bads))
-    # correct_rejections = len(set(previous_bads) - set(answer))
+    misses = len(set(answer) - set(previous_bads))
+    correct_rejections = len(set(previous_bads) - set(answer))
 
     # return hits, false_alarms, misses, correct_rejections
+
+    # Store the output in the shared dict
+    shared['hits'] = hits
+    shared['false_alarms'] = false_alarms
+    shared['misses'] = misses
+    shared['correct_rejections'] = correct_rejections
         
 def monitor_ICs(ica, answer, shared):
     # Initialize previous_bads to an empty list

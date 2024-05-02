@@ -60,7 +60,7 @@ def on_press(key):
     if key == keyboard.Key.tab:
         shared['tab_pressed'] = True
 
-data_path = 'processed_data/'  # Directory to save preprocessed files 
+data_path = 'processed_data\\'  # Directory to save preprocessed files 
 fileList = ['FADM9A_session1_run01.fif_preprocessed-raw.fif', '03TPZ5_session2_run01.fif_preprocessed-raw.fif']
 
 for file in fileList:
@@ -113,10 +113,17 @@ for file in fileList:
             QApplication.processEvents()
             # Sleep for a short time to reduce CPU usage
             time.sleep(0.1)
-
+        
         print('we are here')
     else:
         print(f"File {file_path} does not exist.")
+    
+    # After the thread has finished, get the results
+    hits = shared.get('hits')
+    false_alarms = shared.get('false_alarms')
+    misses = shared.get('misses')
+    correct_rejections = shared.get('correct_rejections')
+    print(hits, false_alarms, misses, correct_rejections)
 
 # # After experiment, retrieve results
 # hits, false_alarms, misses, correct_rejections = hf.monitor_bads(fig, answer, shared)
