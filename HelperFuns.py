@@ -9,6 +9,7 @@ import mne
 import os
 
 def display_message(message, color):
+    """Displays a temporary window with a message."""
     # Create a new Tk root
     root = tk.Tk()
 
@@ -37,6 +38,8 @@ def display_message(message, color):
     root.destroy()
 
 def monitor_bads(fig, answer,shared):
+    """Monitors bad channels, provides feedback, and stores results."""
+
     # Initialize previous_bads to an empty list
     previous_bads = []
     
