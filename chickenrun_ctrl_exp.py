@@ -53,6 +53,8 @@ display_slides(slide_folder)
 # block for the experimental group (with feedback)
 ####################
 
+# Define the shared dictionary globally
+shared = {'space_pressed': False, 'tab_pressed': False, 'done': False}
 
 def on_press(key):
     if key == keyboard.Key.space:
