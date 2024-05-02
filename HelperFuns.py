@@ -138,7 +138,11 @@ def monitor_bads(fig, answer,shared):
         print("Error in thread: ", e)  # Check if there's an error in the thread
     
     misses = len(set(answer) - set(previous_bads))
-    correct_rejections = len(set(previous_bads) - set(answer))
+
+    # Read num_channels from the file
+    with open('num_channels.txt', 'r') as f:
+        num_channels = int(f.read())
+    correct_rejections = num_channels - hits - false_alarms - misses
 
     # Store the output in the shared dict
     shared['hits'] = hits
@@ -232,7 +236,11 @@ def monitor_ICs(ica, answer, shared):
         print("Error in thread: ", e)  # Check if there's an error in the thread
     
     misses = len(set(answer) - set(previous_bads))
-    correct_rejections = len(set(previous_bads) - set(answer))
+    
+    # Read num_channels from the file
+    with open('num_channels.txt', 'r') as f:
+        num_channels = int(f.read())
+    correct_rejections = num_channels - hits - false_alarms - misses
 
 def save_results(subj, ses, run, hits, false_alarms, misses, correct_rejections):
     """Saves the results to a CSV file."""

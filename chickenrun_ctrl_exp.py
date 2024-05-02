@@ -53,9 +53,6 @@ display_slides(slide_folder)
 # block for the experimental group (with feedback)
 ####################
 
-# Define the shared dictionary globally
-shared = {'space_pressed': False, 'tab_pressed': False, 'done': False}
-
 def on_press(key):
     if key == keyboard.Key.space:
         shared['space_pressed'] = True        
@@ -97,7 +94,11 @@ for file in fileList:
         # Create a shared dictionary
         shared = {'space_pressed': False,
                   'tab_pressed': False,
-                  'done': False}
+                  'done': False,
+                  'hits': 0,
+                  'false_alarms': 0,
+                  'misses': 0,
+                  'correct_rejections': 0}
 
         # Create a new thread that runs the monitor_bads function
         thread = Thread(target=hf.monitor_bads, args=(fig, answer, shared))
@@ -129,12 +130,6 @@ for file in fileList:
     # Save results
     hf.save_results(subj, ses, run, hits, false_alarms, misses, correct_rejections)
     
-# # After experiment, retrieve results
-# hits, false_alarms, misses, correct_rejections = hf.monitor_bads(fig, answer, shared)
-
-# # Save results
-# hf.save_results(subj, ses, run, hits, false_alarms, misses, correct_rejections)
-
 # %%
 print('now we are here')
 ####################

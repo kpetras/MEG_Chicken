@@ -7,8 +7,8 @@ import os
 # Define the path to the raw data and the file name
 path = 'C:\\Users\\stagaire\\Desktop\\Repository\\data\\'  # or your specific path
 # path = 'data/'
-subj = '03TPZ5'
-ses = 'session2'
+subj = 'FADM9A'
+ses = 'session1'
 run = 'run01.fif'
 save_path = 'processed_data\\'  # Directory to save the preprocessed files
 
@@ -57,6 +57,12 @@ def load_and_preprocess_data(path, subj, ses, run, save_path=None):
         save_file = f"{save_path}{fname}_preprocessed-raw.fif"
         raw_filtered.save(save_file, overwrite=True)
         print(f"Preprocessed data saved to: {save_file}")
+    
+    # Save num_channels to a file
+    num_channels = raw_filtered.info['nchan']
+
+    with open('num_channels.txt', 'w') as f:
+        f.write(str(num_channels))
 
     return raw_filtered
 
