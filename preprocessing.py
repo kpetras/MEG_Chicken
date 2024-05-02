@@ -1,5 +1,6 @@
 # preprocessing.py
 
+# %%
 import numpy as np
 import mne
 import os
@@ -9,8 +10,8 @@ import os
 path = 'C:\\Users\\stagaire\\Desktop\\Repository\\data\\'  # or your specific path
 # path = 'data/'
 subj = 'FADM9A'
-ses = 'session2'
-run = 'run01.fif'
+ses = 'session1'
+run = 'run02.fif'
 save_path = 'processed_data\\'  # Directory to save the preprocessed files
 
 def load_and_preprocess_data(path, subj, ses, run, save_path=None):
@@ -64,6 +65,13 @@ def load_and_preprocess_data(path, subj, ses, run, save_path=None):
 load_and_preprocess_data(path, subj, ses, run, 'processed_data\\')
 
 # %%
+# Call load_and_preprocess_data and assign the return value to raw_filtered
+raw_filtered = load_and_preprocess_data(path, subj, ses, run, 'processed_data\\')
+
+# Do the ICA decomposition for each sensor type
+chs_type = 'eeg'  # ['mag', 'grad', 'eeg']
+
 # Fit ICA component
 ica = mne.preprocessing.ICA(n_components=50, random_state=42)
 ica.fit(raw_filtered, picks = chs_type)
+# %%
