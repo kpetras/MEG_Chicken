@@ -123,7 +123,9 @@ for file in fileList:
     false_alarms = shared.get('false_alarms')
     misses = shared.get('misses')
     correct_rejections = shared.get('correct_rejections')
-    print(hits, false_alarms, misses, correct_rejections)
+
+    # Save results
+    hf.save_results(subj, ses, run, hits, false_alarms, misses, correct_rejections)
 
 # # After experiment, retrieve results
 # hits, false_alarms, misses, correct_rejections = hf.monitor_bads(fig, answer, shared)
