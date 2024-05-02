@@ -131,45 +131,9 @@ print('now we are here')
 ####################
 # block for the ICA rejection
 ####################
+
 import matplotlib
 matplotlib.use('Qt5Agg')  # Make sure to use an interactive backend
-
-# Do the ICA decomposition for each sensor type
-chs_type = 'eeg' # ['mag', 'grad', 'eeg']
-# Retrieve bad channels and ICA indices
-from config import ICA_remove_inds
-
-data_path = 'processed_data\\'  # Directory to save preprocessed files 
-fileList = ['FADM9A_session1_run01.fif_preprocessed-raw.fif', 'FADM9A_session1_run02.fif_preprocessed-raw.fif']
-n_components_per_page = 50 # number of components per page
-
-for file in fileList:
-    print('processing file: ', file)
-    # Retrieve bad channels and ICA indices
-    # from config import datapath, preprocpath, subjects
-    file_path = os.path.join(data_path, file)
-    filePath_without_ext = os.path.splitext(file)[0]    
-    parts = filePath_without_ext.split('_')    
-    # Extract subj, ses, and run
-    subj, ses, run = parts[0], parts[1], parts[2]
-    ICA_remove_inds_list = ICA_remove_inds[subj][run]
-    answer = ICA_remove_inds_list[chs_type]
-
-# %%
-# Create a shared dictionary
-shared = {'space_pressed': False, 
-          'tab_pressed': False,
-          'done': False,
-          'hits': 0,
-          'false_alarms': 0,
-          'misses': 0,
-          'correct_rejections': n_components_per_page}
-
-# Create a new thread that runs the monitor_bads function
-thread = threading.Thread(target=hf.monitor_ICs, args=(ica, answer, shared))
-
-# Start the new thread
-thread.start()
 
 # Listen for space key press
 def on_press(key):
@@ -178,21 +142,78 @@ def on_press(key):
     if key == keyboard.Key.tab:
         shared['tab_pressed'] = True
 
-# Start listening for key press
-listener = keyboard.Listener(on_press=on_press)
-listener.start()
+data_path = 'fitted_ica\\'  # Directory to save fitted ica files 
+fileList = ['FADM9A_session1_run01.fif_fitted_ica.fif', 'FADM9A_session1_run02.fif_fitted_ica.fif']
 
-ica.plot_sources(raw_filtered, block=False)
-fig = ica.plot_components(inst=raw_filtered, picks=range(n_components_per_page))
+# Do the ICA decomposition for each sensor type
+chs_type = 'eeg' # ['mag', 'grad', 'eeg']
+n_components_per_page = 50 # number of components per page
 
-# After the thread has finished, get the results
-hits = shared.get('hits')
-false_alarms = shared.get('false_alarms')
-misses = shared.get('misses')
-correct_rejections = shared.get('correct_rejections')
+for file in fileList:
+    print('processing file: ', file)
+    # Retrieve bad channels and ICA indices
+    # from config import datapath, preprocpath, subjects
+    from config import ICA_remove_inds
+    file_path = os.path.join(data_path, file)
+    filePath_without_ext = os.path.splitext(file)[0]    
+    parts = filePath_without_ext.split('_')    
+    # Extract subj, ses, and run
+    subj, ses, run = parts[0], parts[1], parts[2]
+    ICA_remove_inds_list = ICA_remove_inds[subj][run]
 
-# Save results
-hf.save_results_ICs(subj, ses, run, hits, false_alarms, misses, correct_rejections)
+    # Check if the file exists before trying to load it
+    if os.path.exists(file_path):
+    # Load the fitted ICA
+        ica = mne.preprocessing.read_ica(file_path)
+
+        ica.plot_sources(raw_filtered, block=False)
+        fig = ica.plot_components(inst=raw_filtered, picks=range(n_components_per_page))
+
+        # Initialize previous_ICs to an empty list
+        previous_bads = []
+        answer = ICA_remove_inds_list[chs_type]
+
+        # Initialize a counter
+        counter = 0
+
+        # Create a shared dictionary
+        shared = {'space_pressed': False, 
+                  'tab_pressed': False,
+                  'done': False,
+                  'hits': 0,
+                  'false_alarms': 0,
+                  'misses': 0,
+                  'correct_rejections': n_components_per_page}
+
+        # Create a new thread that runs the monitor_bads function
+        thread = threading.Thread(target=hf.monitor_ICs, args=(ica, answer, shared))
+
+        # Start the new thread
+        thread.start()
+
+        # Start listening for key press
+        listener = keyboard.Listener(on_press=on_press)
+        listener.start()
+
+        # Wait for the thread to finish
+        while not shared['done']:
+            # Process the GUI event loop
+            QApplication.processEvents()
+            # Sleep for a short time to reduce CPU usage
+            time.sleep(0.1)
+        
+        print('we are here')
+    else:
+        print(f"File {file_path} does not exist.")
+
+    # After the thread has finished, get the results
+    hits = shared.get('hits')
+    false_alarms = shared.get('false_alarms')
+    misses = shared.get('misses')
+    correct_rejections = shared.get('correct_rejections')
+
+    # Save results
+    hf.save_results_ICs(subj, ses, run, hits, false_alarms, misses, correct_rejections)
 
 # %%
 # prepare the epochs

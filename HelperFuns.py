@@ -272,7 +272,7 @@ def save_results_bads(subj, ses, run, hits, false_alarms, misses, correct_reject
     
     print(f"Results saved to: {results_path}")
 
-def save_results_ICs(subj, ses, run, hits, false_alarms, misses):
+def save_results_ICs(subj, ses, run, hits, false_alarms, misses, correct_rejections):
     """Saves the results of monitor_ICs to a CSV file."""
     # Define results path
     results_path = f"{subj}_{ses}_{run}_ICs_results.csv"
@@ -282,9 +282,9 @@ def save_results_ICs(subj, ses, run, hits, false_alarms, misses):
         # Initialize the CSV writer
         writer = csv.writer(file)
         # Write the header
-        writer.writerow(["Hits", "False Alarms", "Misses"])
+        writer.writerow(["Hits", "False Alarms", "Misses", "Correct Rejections"])
         # Write the results
-        writer.writerow([hits, false_alarms, misses])
+        writer.writerow([hits, false_alarms, misses, correct_rejections])
     
     print(f"Results saved to: {results_path}")
 

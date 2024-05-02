@@ -6,13 +6,6 @@ import mne
 import os
 
 # %%
-# Define the path to the raw data and the file name
-path = 'C:\\Users\\stagaire\\Desktop\\Repository\\data\\'  # or your specific path
-# path = 'data/'
-subj = '03TPZ5'
-ses = 'session2'
-run = 'run01.fif'
-
 def load_and_preprocess_data(path, subj, ses, run, save_path = 'processed_data\\'):
     """
     Loads and preprocesses the raw data by applying filters.
@@ -59,8 +52,6 @@ def load_and_preprocess_data(path, subj, ses, run, save_path = 'processed_data\\
 
     return raw_filtered
 
-load_and_preprocess_data(path, subj, ses, run, 'processed_data\\')
-
 # %%
 def fit_and_save_ica(raw, subj, ses, run, chs_type='eeg', n_components=50, ica_save_path='fitted_ica\\'):
     """
@@ -96,9 +87,33 @@ def fit_and_save_ica(raw, subj, ses, run, chs_type='eeg', n_components=50, ica_s
 
     return ica
 
-# Call load_and_preprocess_data and assign the return value to raw_filtered
-raw_filtered = load_and_preprocess_data(path, subj, ses, run, 'processed_data\\')
+# %%
+# Define the path to the raw data 
+path = 'C:\\Users\\stagaire\\Desktop\\Repository\\data\\'  # or your specific path
+# path = 'data/'
 
-# Call fit_and_save_ica and assign the return value to ica
-fit_and_save_ica(raw_filtered, subj, ses, run)
+# List of files to preprocess
+files_raw = [
+    {'subj': 'FADM9A', 'ses': 'session1', 'run': 'run01.fif'},
+    {'subj': '03TPZ5', 'ses': 'session2', 'run': 'run01.fif'}
+]
+
+# Loop over the files
+for file in files_raw:
+    # Call load_and_preprocess_data and assign the return value to raw_filtered
+    load_and_preprocess_data(path, file['subj'], file['ses'], file['run'], 'processed_data\\')
+
+# List of files to fit ICA
+files_ica = [
+    {'subj': 'FADM9A', 'ses': 'session1', 'run': 'run01.fif'},
+    {'subj': 'FADM9A', 'ses': 'session1', 'run': 'run02.fif'}
+]
+
+# Loop over the files
+for file in files_ica:
+    # Call load_and_preprocess_data and assign the return value to raw_filtered
+    raw_filtered = load_and_preprocess_data(path, file['subj'], file['ses'], file['run'], 'processed_data\\')
+
+    # Call fit_and_save_ica and assign the return value to ica
+    fit_and_save_ica(raw_filtered, file['subj'], file['ses'], file['run'])
 # %%
