@@ -20,7 +20,7 @@ from PyQt5.QtWidgets import QApplication
 
 # %%
 # Load Preprocessed Data Function 
-data_path = 'processed_data/'  # Directory to save preprocessed files 
+data_path = 'processed_data\\'  # Directory to save preprocessed files 
 fileList = ['FADM9A_session1_run01.fif_preprocessed-raw.fif', '03TPZ5_session2_run01.fif_preprocessed-raw.fif']
 
 
