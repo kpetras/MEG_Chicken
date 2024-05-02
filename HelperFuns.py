@@ -248,18 +248,18 @@ def monitor_ICs(ica, answer, shared):
         print("Error in thread: ", e)  # Check if there's an error in the thread
     
     misses = len(set(answer) - set(previous_bads))
-    #correct_rejections = - hits - false_alarms - misses
+    correct_rejections = - hits - false_alarms - misses
 
     # Store the output in the shared dict
     shared['hits'] = hits
     shared['false_alarms'] = false_alarms
     shared['misses'] = misses
-    #shared['correct_rejections'] += correct_rejections
+    shared['correct_rejections'] += correct_rejections
 
-def save_results(subj, ses, run, hits, false_alarms, misses, correct_rejections):
-    """Saves the results to a CSV file."""
+def save_results_bads(subj, ses, run, hits, false_alarms, misses, correct_rejections):
+    """Saves the results of monitor_bads to a CSV file."""
     # Define results path
-    results_path = f"{subj}_{ses}_{run}_results.csv"
+    results_path = f"{subj}_{ses}_{run}_bads_results.csv"
 
     # Open the file in append mode
     with open(results_path, mode='w', newline='') as file:
@@ -269,6 +269,22 @@ def save_results(subj, ses, run, hits, false_alarms, misses, correct_rejections)
         writer.writerow(["Hits", "False Alarms", "Misses", "Correct Rejections"])
         # Write the results
         writer.writerow([hits, false_alarms, misses, correct_rejections])
+    
+    print(f"Results saved to: {results_path}")
+
+def save_results_ICs(subj, ses, run, hits, false_alarms, misses):
+    """Saves the results of monitor_ICs to a CSV file."""
+    # Define results path
+    results_path = f"{subj}_{ses}_{run}_ICs_results.csv"
+
+    # Open the file in append mode
+    with open(results_path, mode='w', newline='') as file:
+        # Initialize the CSV writer
+        writer = csv.writer(file)
+        # Write the header
+        writer.writerow(["Hits", "False Alarms", "Misses"])
+        # Write the results
+        writer.writerow([hits, false_alarms, misses])
     
     print(f"Results saved to: {results_path}")
 

@@ -4,11 +4,12 @@ import numpy as np
 import mne
 import os
 
+# %%
 # Define the path to the raw data and the file name
 path = 'C:\\Users\\stagaire\\Desktop\\Repository\\data\\'  # or your specific path
 # path = 'data/'
 subj = 'FADM9A'
-ses = 'session1'
+ses = 'session2'
 run = 'run01.fif'
 save_path = 'processed_data\\'  # Directory to save the preprocessed files
 
@@ -61,3 +62,8 @@ def load_and_preprocess_data(path, subj, ses, run, save_path=None):
     return raw_filtered
 
 load_and_preprocess_data(path, subj, ses, run, 'processed_data\\')
+
+# %%
+# Fit ICA component
+ica = mne.preprocessing.ICA(n_components=50, random_state=42)
+ica.fit(raw_filtered, picks = chs_type)

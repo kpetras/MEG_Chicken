@@ -124,7 +124,7 @@ for file in fileList:
     correct_rejections = shared.get('correct_rejections')
 
     # Save results
-    hf.save_results(subj, ses, run, hits, false_alarms, misses, correct_rejections)
+    hf.save_results_bads(subj, ses, run, hits, false_alarms, misses, correct_rejections)
     
 # %%
 print('now we are here')
@@ -138,14 +138,22 @@ matplotlib.use('Qt5Agg')  # Make sure to use an interactive backend
 chs_type = 'eeg' # ['mag', 'grad', 'eeg']
 # Retrieve bad channels and ICA indices
 from config import ICA_remove_inds
-ICA_remove_inds_list = ICA_remove_inds[subj][run]
-answer = ICA_remove_inds_list[chs_type]
 
-# Fit ICA component
-ica = mne.preprocessing.ICA(n_components=50, random_state=42)
-ica.fit(raw_filtered, picks = chs_type)
-
+data_path = 'processed_data\\'  # Directory to save preprocessed files 
+fileList = ['FADM9A_session1_run01.fif_preprocessed-raw.fif', 'FADM9A_session1_run02.fif_preprocessed-raw.fif']
 n_components_per_page = 50 # number of components per page
+
+for file in fileList:
+    print('processing file: ', file)
+    # Retrieve bad channels and ICA indices
+    # from config import datapath, preprocpath, subjects
+    file_path = os.path.join(data_path, file)
+    filePath_without_ext = os.path.splitext(file)[0]    
+    parts = filePath_without_ext.split('_')    
+    # Extract subj, ses, and run
+    subj, ses, run = parts[0], parts[1], parts[2]
+    ICA_remove_inds_list = ICA_remove_inds[subj][run]
+    answer = ICA_remove_inds_list[chs_type]
 
 # %%
 # Create a shared dictionary
@@ -155,7 +163,7 @@ shared = {'space_pressed': False,
           'hits': 0,
           'false_alarms': 0,
           'misses': 0,
-          'correct_rejections': 0}
+          'correct_rejections': n_components_per_page}
 
 # Create a new thread that runs the monitor_bads function
 thread = threading.Thread(target=hf.monitor_ICs, args=(ica, answer, shared))
@@ -184,7 +192,7 @@ misses = shared.get('misses')
 correct_rejections = shared.get('correct_rejections')
 
 # Save results
-hf.save_results(subj, ses, run, hits, false_alarms, misses, correct_rejections)
+hf.save_results_ICs(subj, ses, run, hits, false_alarms, misses, correct_rejections)
 
 # %%
 # prepare the epochs
