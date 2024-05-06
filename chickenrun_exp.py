@@ -1,6 +1,8 @@
-# chickenrun_ctrl_exp.py
-# "write the entire experiment for the control group"
+# chickenrun_exp.py
 
+####################
+# block for the experimental group (feedback)
+####################
 # %%
 # Import packages
 import numpy as np
@@ -45,6 +47,9 @@ display_slides(slide_folder)
 # %%
 ####################
 # block for the experimental group (with feedback)
+####################
+####################
+# block for the EEG channels rejection
 ####################
 
 def on_press(key):
@@ -124,7 +129,7 @@ for file in fileList:
     correct_rejections = shared.get('correct_rejections')
 
     # Save results
-    hf.save_results_bads(subj, ses, run, hits, false_alarms, misses, correct_rejections)
+    hf.save_results_bads(subj, ses, run, hits, false_alarms, misses, correct_rejections, 'experimental')
     
 # %%
 print('now we are here')
@@ -213,7 +218,7 @@ for file in fileList:
     correct_rejections = shared.get('correct_rejections')
 
     # Save results
-    hf.save_results_ICs(subj, ses, run, hits, false_alarms, misses, correct_rejections)
+    hf.save_results_ICs(subj, ses, run, hits, false_alarms, misses, correct_rejections, 'experimental')
 
 # %%
 # prepare the epochs

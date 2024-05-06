@@ -255,34 +255,124 @@ def monitor_ICs(ica, answer, shared):
     shared['misses'] = misses
     shared['correct_rejections'] += correct_rejections
 
-def save_results_bads(subj, ses, run, hits, false_alarms, misses, correct_rejections):
+def monitor_bads_no_feedback(fig, answer, shared):
+    """Monitors bad channels without feedback and stores results."""
+
+    previous_bads = []
+    counter = 0
+    hits = 0
+    false_alarms = 0
+    correct_rejections = 0
+    misses = 0 
+    controller = keyboard.Controller()
+
+    try:
+        while True:
+            current_bads = fig.mne.info['bads']
+
+            if shared.get('space_pressed', False):
+                shared['space_pressed'] = False
+
+            if len(current_bads) != len(previous_bads):
+                added = set(current_bads) - set(previous_bads)
+                hits += len([item for item in added if item in answer])
+                false_alarms += len([item for item in added if item not in answer])
+
+                removed = set(previous_bads) - set(current_bads)
+                misses += len([item for item in removed if item in answer])
+
+            previous_bads = current_bads.copy()
+            counter += 1
+
+            if shared.get('tab_pressed', False):
+                shared['tab_pressed'] = False
+                shared['done'] = True
+                controller.press(keyboard.Key.esc)
+                controller.release(keyboard.Key.esc)
+                break
+
+            time.sleep(1)
+
+        misses = len(set(answer) - set(previous_bads))
+        correct_rejections = -hits - false_alarms - misses
+
+        shared['hits'] = hits
+        shared['false_alarms'] = false_alarms
+        shared['misses'] = misses
+        shared['correct_rejections'] += correct_rejections
+
+    except Exception as e:
+        print("Error in thread: ", e)
+
+def monitor_ICs_no_feedback(ica, answer, shared):
+    """Monitors bad ICs without feedback and stores results."""
+
+    previous_bads = []
+    counter = 0
+    hits = 0
+    false_alarms = 0
+    controller = keyboard.Controller()
+
+    try:
+        while True:
+            current_bads = ica.exclude
+
+            if shared.get('space_pressed', False):
+                shared['space_pressed'] = False
+
+            if len(current_bads) != len(previous_bads):
+                added = set(current_bads) - set(previous_bads)
+                hits += len([item for item in added if item in answer])
+                false_alarms += len([item for item in added if item not in answer])
+
+                removed = set(previous_bads) - set(current_bads)
+                misses += len([item for item in removed if item in answer])
+
+            previous_bads = current_bads.copy()
+            counter += 1
+
+            if shared.get('tab_pressed', False):
+                shared['tab_pressed'] = False
+                shared['done'] = True
+                controller.press(keyboard.Key.esc)
+                controller.release(keyboard.Key.esc)
+                break
+
+            time.sleep(1)
+
+        misses = len(set(answer) - set(previous_bads))
+        correct_rejections = -hits - false_alarms - misses
+
+        shared['hits'] = hits
+        shared['false_alarms'] = false_alarms
+        shared['misses'] = misses
+        shared['correct_rejections'] += correct_rejections
+    
+    except Exception as e:
+        print("Error in thread: ", e)
+
+def save_results_bads(subj, ses, run, hits, false_alarms, misses, correct_rejections, group):
     """Saves the results of monitor_bads to a CSV file."""
-    # Define results path
-    results_path = f"{subj}_{ses}_{run}_bads_results.csv"
+    directory = os.path.join(group, "bads_results")
+    os.makedirs(directory, exist_ok=True)
+    results_path = os.path.join(directory, f"{subj}_{ses}_{run}_bads_results.csv")
  
-    # Open the file in append mode
     with open(results_path, mode='w', newline='') as file:
-        # Initialize the CSV writer
         writer = csv.writer(file)
-        # Write the header
         writer.writerow(["Hits", "False Alarms", "Misses", "Correct Rejections"])
-        # Write the results
         writer.writerow([hits, false_alarms, misses, correct_rejections])
     
     print(f"Results saved to: {results_path}")
 
-def save_results_ICs(subj, ses, run, hits, false_alarms, misses, correct_rejections):
+def save_results_ICs(subj, ses, run, hits, false_alarms, misses, correct_rejections, group):
     """Saves the results of monitor_ICs to a CSV file."""
-    # Define results path
-    results_path = f"{subj}_{ses}_{run}_ICs_results.csv"
-  
-    # Open the file in append mode
+    directory = os.path.join(group, "ICs_results")
+    os.makedirs(directory, exist_ok=True)
+    results_path = os.path.join(directory, f"{subj}_{ses}_{run}_ICs_results.csv")
+
     with open(results_path, mode='w', newline='') as file:
-        # Initialize the CSV writer
         writer = csv.writer(file)
-        # Write the header
         writer.writerow(["Hits", "False Alarms", "Misses", "Correct Rejections"])
-        # Write the results
         writer.writerow([hits, false_alarms, misses, correct_rejections])
     
     print(f"Results saved to: {results_path}")
