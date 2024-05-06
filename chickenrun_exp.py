@@ -1,8 +1,9 @@
 # chickenrun_exp.py
 
 ####################
-# block for the experimental group (feedback)
+# block for the experimental group (with feedback)
 ####################
+
 # %%
 # Import packages
 import numpy as np
@@ -25,23 +26,6 @@ data_path = 'processed_data\\'  # Directory to save preprocessed files
 fileList = ['FADM9A_session1_run01.fif_preprocessed-raw.fif', '03TPZ5_session2_run01.fif_preprocessed-raw.fif'] 
 
 # %%
-####################
-# block for the control group (no feedback)
-####################
-
-# open interactive window
-# fig = raw_filtered.plot(n_channels=1, duration=2)
-
-# # close the interactive window when it's done
-
-# # compare and record the results
-# response = raw_filtered.info['bads']
-# answer = badC_MEG_list + badC_EEG_list
-
-# %%
-####################
-# block for the experimental group (with feedback)
-####################
 ####################
 # block for the EEG channels rejection
 ####################
@@ -126,7 +110,6 @@ for file in fileList:
     hf.save_results_bads(subj, ses, run, hits, false_alarms, misses, correct_rejections, 'experimental')
     
 # %%
-print('now we are here')
 ####################
 # block for the ICA rejection
 ####################

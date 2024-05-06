@@ -37,6 +37,7 @@ def display_message(message, color):
     # Destroy the root
     root.destroy()
 
+
 def monitor_bads(fig, answer,shared):
     """Monitors bad channels, provides feedback, and stores results."""
 
@@ -76,7 +77,6 @@ def monitor_bads(fig, answer,shared):
                 else:
                     print("All bad channels were correctly identified.")
                 
-            
             # print("Current bads: ", current_bads)  # Check if current_bads is updating
 
             # Check if the length has changed
@@ -145,7 +145,8 @@ def monitor_bads(fig, answer,shared):
     shared['false_alarms'] = false_alarms
     shared['misses'] = misses
     shared['correct_rejections'] += correct_rejections
-        
+
+
 def monitor_ICs(ica, answer, shared):
     """Monitors bad ICs, provides feedback, and stores results."""
 
@@ -255,6 +256,7 @@ def monitor_ICs(ica, answer, shared):
     shared['misses'] = misses
     shared['correct_rejections'] += correct_rejections
 
+
 def monitor_bads_no_feedback(fig, answer, shared):
     """Monitors bad channels without feedback and stores results."""
 
@@ -304,6 +306,7 @@ def monitor_bads_no_feedback(fig, answer, shared):
     except Exception as e:
         print("Error in thread: ", e)
 
+
 def monitor_ICs_no_feedback(ica, answer, shared):
     """Monitors bad ICs without feedback and stores results."""
 
@@ -352,6 +355,7 @@ def monitor_ICs_no_feedback(ica, answer, shared):
     except Exception as e:
         print("Error in thread: ", e)
 
+
 def save_results_bads(subj, ses, run, hits, false_alarms, misses, correct_rejections, group):
     """Saves the results of monitor_bads to a CSV file."""
     directory = os.path.join(group, "bads_results")
@@ -364,6 +368,7 @@ def save_results_bads(subj, ses, run, hits, false_alarms, misses, correct_reject
         writer.writerow([hits, false_alarms, misses, correct_rejections])
     
     print(f"Results saved to: {results_path}")
+
 
 def save_results_ICs(subj, ses, run, hits, false_alarms, misses, correct_rejections, group):
     """Saves the results of monitor_ICs to a CSV file."""
@@ -378,6 +383,7 @@ def save_results_ICs(subj, ses, run, hits, false_alarms, misses, correct_rejecti
     
     print(f"Results saved to: {results_path}")
 
+
 def load_preprocessed_data(data_path): 
     """ 
     Loads preprocessed data from a specified directory. 
@@ -385,11 +391,9 @@ def load_preprocessed_data(data_path):
     Args: 
         data_path (str): full path to preprocessed files. 
 
-
     Returns: 
         mne.io.Raw: Preprocessed raw data. 
     """ 
-    
     fname = f"{data_path}_preprocessed-raw.fif" 
     fname_with_path = f"{data_path}{fname}" 
     
