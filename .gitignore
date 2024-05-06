@@ -1,2 +1,4 @@
-data/tempfile.fif
-data/03TPZ5_session2_run01.fif
+processed_data/
+fitted_ica/
+experimental/
+control/
