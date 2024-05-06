@@ -259,7 +259,7 @@ def save_results_bads(subj, ses, run, hits, false_alarms, misses, correct_reject
     """Saves the results of monitor_bads to a CSV file."""
     # Define results path
     results_path = f"{subj}_{ses}_{run}_bads_results.csv"
-
+ 
     # Open the file in append mode
     with open(results_path, mode='w', newline='') as file:
         # Initialize the CSV writer
@@ -275,7 +275,7 @@ def save_results_ICs(subj, ses, run, hits, false_alarms, misses, correct_rejecti
     """Saves the results of monitor_ICs to a CSV file."""
     # Define results path
     results_path = f"{subj}_{ses}_{run}_ICs_results.csv"
-
+  
     # Open the file in append mode
     with open(results_path, mode='w', newline='') as file:
         # Initialize the CSV writer

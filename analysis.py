@@ -1,13 +1,12 @@
 import csv
 import os
-
-def extract_and_average_results(directory):
+def extract_and_average_results(directory, suffix):
     # Initialize counters for the metrics
     total_hits, total_false_alarms, total_correct_rejections, total_misses = 0, 0, 0, 0
     count = 0
 
-    # List all CSV files in the specified directory
-    csv_files = [f for f in os.listdir(directory) if f.endswith('.csv')]
+    # List all CSV files in the specified directory with the specified suffix
+    csv_files = [f for f in os.listdir(directory) if f.endswith(suffix)]
 
     for file in csv_files:
         with open(os.path.join(directory, file), mode='r') as csvfile:
@@ -32,10 +31,12 @@ def extract_and_average_results(directory):
         "Average Correct Rejections": avg_correct_rejections,
         "Average Misses": avg_misses
     }
-
+    
     return result
 
 # Example usage
-directory = "path/to/your/csv/files"  # Replace with your directory path
-average_results = extract_and_average_results(directory)
-print(average_results)
+directory = r"c:\Users\stagaire\Desktop\Repository\MEG_Chicken"
+average_results_bads = extract_and_average_results(directory, 'bads_results.csv')
+average_results_ICs = extract_and_average_results(directory, 'ICs_results.csv')
+print("Average results for bads:", average_results_bads)
+print("Average results for ICs:", average_results_ICs)
