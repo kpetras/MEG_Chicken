@@ -74,7 +74,6 @@ def compare_initial_final_performance(metrics):
     perform_ttest("Correct Rejections", initial_metrics[2], final_metrics[2])
     perform_ttest("Misses", initial_metrics[3], final_metrics[3])
 
-
 # Example usage
 control_dir = r"c:\Users\stagaire\Desktop\Repository\MEG_Chicken\control"
 experimental_dir = r"c:\Users\stagaire\Desktop\Repository\MEG_Chicken\experimental"
