@@ -108,3 +108,93 @@ print("\nComparing initial vs final - Experimental - ICs:")
 compare_initial_final_performance(experimental_results_icas)
 
 # %%
+import os
+import csv
+import numpy as np
+import scipy.stats
+import matplotlib.pyplot as plt
+
+def load_results(group, result_type):
+    """Load the results from a specified group and type."""
+    results = []
+    directory = os.path.join(group, f"{result_type}_results")
+    for filename in os.listdir(directory):
+        if filename.endswith(".csv"):
+            filepath = os.path.join(directory, filename)
+            with open(filepath, newline='') as file:
+                reader = csv.DictReader(file)
+                result = next(reader)
+                result = {key: int(value) for key, value in result.items()}
+                results.append(result)
+    return results
+
+def calculate_d_prime(hits, false_alarms, misses, correct_rejections):
+    """Calculate d-prime based on hits, false alarms, misses, and correct rejections."""
+    hit_rate = hits / (hits + misses)
+    false_alarm_rate = false_alarms / (false_alarms + correct_rejections)
+
+    # Adjust rates to avoid extreme cases
+    if hit_rate == 1.0:
+        hit_rate = 1 - 1 / (2 * (hits + misses))
+    elif hit_rate == 0.0:
+        hit_rate = 1 / (2 * (hits + misses))
+    
+    if false_alarm_rate == 1.0:
+        false_alarm_rate = 1 - 1 / (2 * (false_alarms + correct_rejections))
+    elif false_alarm_rate == 0.0:
+        false_alarm_rate = 1 / (2 * (false_alarms + correct_rejections))
+
+    z_hit = scipy.stats.norm.ppf(hit_rate)
+    z_fa = scipy.stats.norm.ppf(false_alarm_rate)
+    d_prime = z_hit - z_fa
+    return d_prime
+
+def calculate_learning_curve(results, window_size):
+    """Calculate the learning curve with sliding time windows."""
+    learning_curve = []
+    midpoints = []
+    for i in range(len(results) - window_size + 1):
+        window = results[i:i + window_size]
+        d_prime_values = [
+            calculate_d_prime(
+                result['Hits'], result['False Alarms'],
+                result['Misses'], result['Correct Rejections']
+            ) for result in window
+        ]
+        learning_curve.append(np.mean(d_prime_values))
+        midpoints.append(i + window_size // 2)
+    return learning_curve, midpoints
+
+def plot_learning_curve(control_curve, control_midpoints, experimental_curve, experimental_midpoints, window_size, result_type):
+    """Plot the learning curve for both groups."""
+    plt.figure()
+    if control_curve:
+        plt.plot(control_midpoints, control_curve, label='Control')
+    if experimental_curve:
+        plt.plot(experimental_midpoints, experimental_curve, label='Experimental')
+    plt.xlabel('Trial')
+    plt.ylabel("d'")
+    plt.title(f'Learning Curve ({result_type}, Window Size = {window_size})')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+# Main script
+
+window_size = 2  # Define the sliding window size
+
+# Load results
+control_bads = load_results('control', 'bads')
+experimental_bads = load_results('experimental', 'bads')
+control_ICs = load_results('control', 'ICs')
+experimental_ICs = load_results('experimental', 'ICs')
+
+# Calculate learning curves
+control_bads_curve, control_bads_midpoints = calculate_learning_curve(control_bads, window_size)
+experimental_bads_curve, experimental_bads_midpoints = calculate_learning_curve(experimental_bads, window_size)
+control_ICs_curve, control_ICs_midpoints = calculate_learning_curve(control_ICs, window_size)
+experimental_ICs_curve, experimental_ICs_midpoints = calculate_learning_curve(experimental_ICs, window_size)
+
+# Plot learning curves
+plot_learning_curve(control_bads_curve, control_bads_midpoints, experimental_bads_curve, experimental_bads_midpoints, window_size, 'Bads')
+plot_learning_curve(control_ICs_curve, control_ICs_midpoints, experimental_ICs_curve, experimental_ICs_midpoints, window_size, 'ICs')
