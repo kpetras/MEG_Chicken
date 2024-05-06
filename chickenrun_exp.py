@@ -166,7 +166,7 @@ for file in fileList:
         ica = mne.preprocessing.read_ica(file_path)
 
         ica.plot_sources(raw_filtered, block=False)
-        fig = ica.plot_components(inst=raw_filtered, picks=range(n_components_per_page))
+        #fig = ica.plot_components(inst=raw_filtered, picks=range(n_components_per_page))
 
         # Initialize previous_ICs to an empty list
         previous_bads = []
@@ -200,7 +200,9 @@ for file in fileList:
             QApplication.processEvents()
             # Sleep for a short time to reduce CPU usage
             time.sleep(0.1)
-        
+
+        fig = ica.plot_components(inst=raw_filtered, picks=range(n_components_per_page))
+
         print('we are here')
     else:
         print(f"File {file_path} does not exist.")
