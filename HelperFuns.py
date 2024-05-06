@@ -311,6 +311,7 @@ def monitor_ICs_no_feedback(ica, answer, shared):
     counter = 0
     hits = 0
     false_alarms = 0
+    misses = 0 
     controller = keyboard.Controller()
 
     try:

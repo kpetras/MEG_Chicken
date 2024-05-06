@@ -22,13 +22,7 @@ from PyQt5.QtWidgets import QApplication
 # %%
 # Load Preprocessed Data Function 
 data_path = 'processed_data\\'  # Directory to save preprocessed files 
-fileList = ['FADM9A_session1_run01.fif_preprocessed-raw.fif', '03TPZ5_session2_run01.fif_preprocessed-raw.fif']
-
-# %%
-# Display the slides
-from slides import display_slides
-slide_folder = r'slides' 
-display_slides(slide_folder)
+fileList = ['FADM9A_session1_run01.fif_preprocessed-raw.fif', '03TPZ5_session2_run01.fif_preprocessed-raw.fif'] 
 
 # %%
 ####################

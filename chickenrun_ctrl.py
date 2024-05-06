@@ -141,3 +141,6 @@ for file in fileList:
         hf.save_results_ICs(subj, ses, run, hits, false_alarms, misses, correct_rejections, 'control')
     else:
         print(f"File {file_path} does not exist.")
+
+# %%
+ 

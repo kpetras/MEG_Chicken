@@ -71,6 +71,7 @@ from statistics import mean
 import numpy as np
 from scipy.stats import ttest_ind, ttest_rel
 
+
 def calculate_averages(files):
     """Calculate the average metrics from a list of CSV files."""
     hits, false_alarms, correct_rejections, misses = [], [], [], []
@@ -86,9 +87,14 @@ def calculate_averages(files):
 
     return hits, false_alarms, correct_rejections, misses
 
-def extract_and_average_results(directory, suffix):
+
+def extract_and_average_results(directory, folder_name):
     """Calculate the metrics for all trials, first half, and second half."""
-    csv_files = [os.path.join(directory, f) for f in os.listdir(directory) if f.endswith(suffix)]
+    csv_files = [
+        os.path.join(directory, folder_name, f)
+        for f in os.listdir(os.path.join(directory, folder_name))
+        if f.endswith(".csv")
+    ]
 
     # Calculate metrics for all trials
     all_metrics = calculate_averages(csv_files)
@@ -103,6 +109,7 @@ def extract_and_average_results(directory, suffix):
     second_half_metrics = calculate_averages(second_half_files)
 
     return all_metrics, first_half_metrics, second_half_metrics
+
 
 def compare_performance(control_metrics, experimental_metrics):
     """Perform Two-sample t-tests between control and experimental groups."""
@@ -119,6 +126,7 @@ def compare_performance(control_metrics, experimental_metrics):
     perform_ttest("Correct Rejections", control_cr, exp_cr)
     perform_ttest("Misses", control_misses, exp_misses)
 
+
 def compare_initial_final_performance(metrics):
     """Perform Paired-sample t-tests between initial and final trials."""
 
@@ -134,11 +142,11 @@ def compare_initial_final_performance(metrics):
 
 
 # Example usage
-control_dir = r"c:\Users\stagaire\Desktop\Repository\MEG_Chicken" #\control"
-experimental_dir = r"c:\Users\stagaire\Desktop\Repository\MEG_Chicken" #\experimental"
+control_dir = r"c:\Users\stagaire\Desktop\Repository\MEG_Chicken\control"
+experimental_dir = r"c:\Users\stagaire\Desktop\Repository\MEG_Chicken\experimental"
 
-control_results_bads = extract_and_average_results(control_dir, 'bads_results.csv')
-experimental_results_bads = extract_and_average_results(experimental_dir, 'bads_results.csv')
+control_results_bads = extract_and_average_results(control_dir, 'bads_results')
+experimental_results_bads = extract_and_average_results(experimental_dir, 'bads_results')
 
 # Two-sample t-test
 print("\nComparing control vs experimental - Bads:")
@@ -151,8 +159,8 @@ compare_initial_final_performance(control_results_bads)
 print("\nComparing initial vs final - Experimental - Bads:")
 compare_initial_final_performance(experimental_results_bads)
 
-control_results_icas = extract_and_average_results(control_dir, 'ICs_results.csv')
-experimental_results_icas = extract_and_average_results(experimental_dir, 'ICs_results.csv')
+control_results_icas = extract_and_average_results(control_dir, 'ICs_results')
+experimental_results_icas = extract_and_average_results(experimental_dir, 'ICs_results')
 
 # Two-sample t-test
 print("\nComparing control vs experimental - ICs:")
