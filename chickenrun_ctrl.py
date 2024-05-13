@@ -143,4 +143,75 @@ for file in fileList:
         print(f"File {file_path} does not exist.")
 
 # %%
- 
+####################
+# block for the EEG channel rejection 10 channels at a time 
+# with a random number of bad channels included
+####################
+
+import random
+
+def get_channel_subset(raw, num_channels, bad_channels):
+    """Get a random subset of channels including bad ones."""
+    all_channels = raw.ch_names
+    good_channels = [ch for ch in all_channels if ch not in bad_channels]
+
+    # Shuffle channels to ensure randomness
+    random.shuffle(good_channels)
+    random.shuffle(bad_channels)
+
+    # Ensure some bad channels are included
+    selected_good = good_channels[:max(0, num_channels - len(bad_channels))]
+    selected_bad = bad_channels[:min(len(bad_channels), num_channels)]
+
+    # Combine and shuffle the final list to mix bad and good channels
+    final_selection = selected_good + selected_bad
+    random.shuffle(final_selection)
+
+    return final_selection
+
+# Block for the EEG channel rejection
+for file in fileList:
+    print('processing file: ', file)
+    file_path = os.path.join(data_path, file)
+
+    if os.path.exists(file_path):
+        raw_filtered = mne.io.read_raw_fif(file_path, preload=True, allow_maxshield=True)
+        answer = badC_MEG_list + badC_EEG_list
+        
+        # Get a random subset of 10 channels including bad ones
+        channels_to_display = get_channel_subset(raw_filtered, 10, answer)
+
+        # Plot with a specific subset of channels
+        fig = raw_filtered.plot(picks=channels_to_display, n_channels=len(channels_to_display), 
+                                duration=2, block=False)
+
+        shared = {
+            'done': False,
+            'hits': 0,
+            'false_alarms': 0,
+            'misses': 0,
+            'correct_rejections': num_channels
+        }
+
+        thread = Thread(target=hf.monitor_bads_no_feedback, args=(fig, answer, shared))
+        thread.start()
+
+        # Start listening for key press
+        listener = keyboard.Listener(on_press=on_press)
+        listener.start()
+
+        # Wait for the thread to finish
+        while not shared['done']:
+            QApplication.processEvents()
+            time.sleep(0.1)
+
+        hits = shared.get('hits')
+        false_alarms = shared.get('false_alarms')
+        misses = shared.get('misses')
+        correct_rejections = shared.get('correct_rejections')
+
+        hf.save_results_bads(subj, ses, run, hits, false_alarms, misses, correct_rejections, 'control')
+    else:
+        print(f"File {file_path} does not exist.")
+
+# %%
