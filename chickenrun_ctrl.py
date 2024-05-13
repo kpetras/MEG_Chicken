@@ -150,26 +150,27 @@ for file in fileList:
 
 import random
 
-def get_channel_subset(raw, num_channels, bad_channels):
-    """Get a random subset of channels including bad ones."""
+def select_and_shuffle_channels(raw, bad_channels):
+    """Selects and shuffles a list of channels including a random selection of bad ones."""
     all_channels = raw.ch_names
     good_channels = [ch for ch in all_channels if ch not in bad_channels]
+    
+    # Randomly select 0 to 3 bad channels
+    num_bad_channels = random.randint(0, 3)
+    selected_bad_channels = random.sample(bad_channels, min(len(bad_channels), num_bad_channels))
+    print('Selected bad channels:', selected_bad_channels)
 
-    # Shuffle channels to ensure randomness
-    random.shuffle(good_channels)
-    random.shuffle(bad_channels)
-
-    # Ensure some bad channels are included
-    selected_good = good_channels[:max(0, num_channels - len(bad_channels))]
-    selected_bad = bad_channels[:min(len(bad_channels), num_channels)]
-
-    # Combine and shuffle the final list to mix bad and good channels
-    final_selection = selected_good + selected_bad
+    # Calculate number of good channels needed
+    num_good_channels = 15 - len(selected_bad_channels)
+    selected_good_channels = random.sample(good_channels, num_good_channels)
+    print('Selected good channels:', selected_good_channels)
+    
+    # Combine and shuffle the final list
+    final_selection = selected_good_channels + selected_bad_channels
     random.shuffle(final_selection)
-
+    
     return final_selection
 
-# Block for the EEG channel rejection
 for file in fileList:
     print('processing file: ', file)
     file_path = os.path.join(data_path, file)
@@ -178,10 +179,10 @@ for file in fileList:
         raw_filtered = mne.io.read_raw_fif(file_path, preload=True, allow_maxshield=True)
         answer = badC_MEG_list + badC_EEG_list
         
-        # Get a random subset of 10 channels including bad ones
-        channels_to_display = get_channel_subset(raw_filtered, 10, answer)
+        # Select 15 channels, randomly including up to 3 bad channels
+        channels_to_display = select_and_shuffle_channels(raw_filtered, answer)
 
-        # Plot with a specific subset of channels
+        # Plot with the specific subset of channels
         fig = raw_filtered.plot(picks=channels_to_display, n_channels=len(channels_to_display), 
                                 duration=2, block=False)
 
@@ -190,21 +191,20 @@ for file in fileList:
             'hits': 0,
             'false_alarms': 0,
             'misses': 0,
-            'correct_rejections': num_channels
+            'correct_rejections': len(channels_to_display)
         }
 
         thread = Thread(target=hf.monitor_bads_no_feedback, args=(fig, answer, shared))
         thread.start()
 
-        # Start listening for key press
         listener = keyboard.Listener(on_press=on_press)
         listener.start()
 
-        # Wait for the thread to finish
         while not shared['done']:
             QApplication.processEvents()
             time.sleep(0.1)
 
+        # Retrieve results and save them
         hits = shared.get('hits')
         false_alarms = shared.get('false_alarms')
         misses = shared.get('misses')
