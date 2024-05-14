@@ -19,6 +19,7 @@ from threading import Thread
 from pynput import keyboard
 import time
 from PyQt5.QtWidgets import QApplication
+import random
 
 # %%
 # Load Preprocessed Data Function 
@@ -39,6 +40,32 @@ def on_press(key):
 data_path = 'processed_data\\'  # Directory to save preprocessed files 
 fileList = ['FADM9A_session1_run01.fif_preprocessed-raw.fif', '03TPZ5_session2_run01.fif_preprocessed-raw.fif']
 
+def select_and_shuffle_channels(raw, bad_channels, channel_type):
+    """Selects and shuffles a list of channels of a specific type including a random selection of bad ones."""
+    all_channels = raw.ch_names
+    # Filter channels based on type (EEG or MEG)
+    type_channels = [ch for ch in all_channels if ch.startswith(channel_type)]
+    good_channels = [ch for ch in type_channels if ch not in bad_channels]
+    
+    # Randomly select 0 to 3 bad channels from the type-specific list
+    num_bad_channels = random.randint(0, 3)
+    selected_bad_channels = random.sample([bc for bc in bad_channels if bc in type_channels], min(len(bad_channels), num_bad_channels))
+    print('Selected bad channels:', selected_bad_channels)
+
+    # Calculate number of good channels needed
+    num_good_channels = 15 - len(selected_bad_channels)
+    selected_good_channels = random.sample(good_channels, num_good_channels)
+    print('Selected good channels:', selected_good_channels)
+    
+    # Combine and shuffle the final list
+    final_selection = selected_good_channels + selected_bad_channels
+    random.shuffle(final_selection)
+
+    # Create a list indicating whether each channel is good (0) or bad (1)
+    channel_status = [0 if ch in selected_good_channels else 1 for ch in final_selection]
+    badChansInDisplay = [ch for ch in final_selection if ch in bad_channels]
+    return final_selection, badChansInDisplay
+
 for file in fileList:
     print('processing file: ', file)
     # Retrieve bad channels and ICA indices
@@ -47,25 +74,25 @@ for file in fileList:
     from config import badC_EEG, badC_MEG, ICA_remove_inds
     filePath_without_ext = os.path.splitext(file)[0]    
     parts = filePath_without_ext.split('_')    
-    # Extract subj, ses, and run
-    subj, ses, run = parts[0], parts[1], parts[2]    
-    badC_MEG_list = badC_MEG[subj][ses][run]
-    badC_EEG_list = badC_EEG[subj][ses][run]
-    #ICA_remove_inds_list = ICA_remove_inds[subj][run]
+    # Extract subj, ses, run
+    subj, ses, run = parts[0], parts[1], parts[2]
+    file_type = random.choice(['EEG', 'MEG'])
+    
+    # Get the specific list of bad channels depending on the chosen file type
+    bad_channel_list = badC_EEG[subj][ses][run] if file_type == 'EEG' else badC_MEG[subj][ses][run]
 
     # Check if the file exists before trying to load it
     if os.path.exists(file_path):
         # Load the preprocessed data 
         raw_filtered = mne.io.read_raw_fif(file_path, preload=True, allow_maxshield=True)
-        num_channels = raw_filtered.info['nchan']
+        channels_to_display, badChansInDisplay = select_and_shuffle_channels(raw_filtered, bad_channel_list, file_type)
 
         # open interactive window
-        fig = raw_filtered.plot(n_channels=10, duration=2, block=False)
+        fig = raw_filtered.plot(picks=channels_to_display, n_channels=15, duration=2, block=False)
         print(type(fig))
 
         # Initialize previous_bads to an empty list
         previous_bads = []
-        answer = badC_MEG_list + badC_EEG_list
 
         # Initialize a counter
         counter = 0
@@ -77,10 +104,10 @@ for file in fileList:
                   'hits': 0,
                   'false_alarms': 0,
                   'misses': 0,
-                  'correct_rejections': num_channels}
+                  'correct_rejections': len(channels_to_display)}
 
         # Create a new thread that runs the monitor_bads function
-        thread = Thread(target=hf.monitor_bads, args=(fig, answer, shared))
+        thread = Thread(target=hf.monitor_bads, args=(fig, badChansInDisplay, shared))
 
         # Start the new thread
         thread.start()

@@ -38,7 +38,7 @@ def display_message(message, color):
     root.destroy()
 
 
-def monitor_bads(fig, answer,shared):
+def monitor_bads(fig, badChansInDisplay, shared):
     """Monitors bad channels, provides feedback, and stores results."""
 
     # Initialize previous_bads to an empty list
@@ -66,7 +66,7 @@ def monitor_bads(fig, answer,shared):
                 print("Space key pressed.")
                 shared['space_pressed'] = False
                 
-                answer_set = set(answer)
+                answer_set = set(badChansInDisplay)
                 current_bads_set = set(current_bads)
 
                 # New : Trouver les channels manquants en comparant les deux ensembles
@@ -88,7 +88,7 @@ def monitor_bads(fig, answer,shared):
                 if added:
                     print("Added: ", added)
                     # check if added is in the answer
-                    added_in_answer = [item for item in added if item in answer]
+                    added_in_answer = [item for item in added if item in badChansInDisplay]
 
                     if added_in_answer:
                         print("Correctly added: ", added_in_answer)
@@ -105,7 +105,7 @@ def monitor_bads(fig, answer,shared):
                 if removed:
                     print("Removed: ", removed)
                     # check if removed is in the answer
-                    removed_in_answer = [item for item in removed if item not in answer]
+                    removed_in_answer = [item for item in removed if item not in badChansInDisplay]
                     if removed_in_answer:
                         print("Correctly removed: ", removed_in_answer)
                     else:
@@ -137,7 +137,7 @@ def monitor_bads(fig, answer,shared):
     except Exception as e:
         print("Error in thread: ", e)  # Check if there's an error in the thread
     
-    misses = len(set(answer) - set(previous_bads))
+    misses = len(set(badChansInDisplay) - set(previous_bads))
     correct_rejections = - hits - false_alarms - misses
 
     # Store the output in the shared dict
@@ -257,7 +257,7 @@ def monitor_ICs(ica, answer, shared):
     shared['correct_rejections'] += correct_rejections
 
 
-def monitor_bads_no_feedback(fig, answer, shared):
+def monitor_bads_no_feedback(fig, badChansInDisplay, shared):
     """Monitors bad channels without feedback and stores results."""
 
     previous_bads = []
@@ -277,11 +277,11 @@ def monitor_bads_no_feedback(fig, answer, shared):
 
             if len(current_bads) != len(previous_bads):
                 added = set(current_bads) - set(previous_bads)
-                hits += len([item for item in added if item in answer])
-                false_alarms += len([item for item in added if item not in answer])
+                hits += len([item for item in added if item in badChansInDisplay])
+                false_alarms += len([item for item in added if item not in badChansInDisplay])
 
                 removed = set(previous_bads) - set(current_bads)
-                misses += len([item for item in removed if item in answer])
+                misses += len([item for item in removed if item in badChansInDisplay])
 
             previous_bads = current_bads.copy()
             counter += 1
@@ -295,7 +295,7 @@ def monitor_bads_no_feedback(fig, answer, shared):
 
             time.sleep(1)
 
-        misses = len(set(answer) - set(previous_bads))
+        misses = len(set(badChansInDisplay) - set(previous_bads))
         correct_rejections = -hits - false_alarms - misses
 
         shared['hits'] = hits
