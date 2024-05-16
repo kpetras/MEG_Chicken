@@ -7,6 +7,45 @@ from pynput import keyboard
 import csv
 import mne
 import os
+import random
+
+
+
+def select_and_shuffle_channels(raw, bad_channels, channel_type):
+    """Selects and shuffles a list of channels of a specific type including a random selection of bad ones."""
+    all_channels = raw.ch_names
+
+    # Filter channels based on type (EEG, Mag, or Grad)
+    if channel_type == 'EEG':
+        type_channels = [ch for ch in all_channels if ch.startswith('EEG')]
+    elif channel_type == 'Mag':
+        type_channels = [ch for ch in all_channels if ch.startswith('MEG') and ch.endswith('1')]
+    elif channel_type == 'Grad':
+        type_channels = [ch for ch in all_channels if ch.startswith('MEG') and (ch.endswith('2') or ch.endswith('3'))]
+    else:
+        raise ValueError(f"Unexpected channel type: {channel_type}")
+
+    good_channels = [ch for ch in type_channels if ch not in bad_channels]
+    
+    # Randomly select 0 to 3 bad channels from the type-specific list
+    num_bad_channels = random.randint(0, 3)
+    bad_channels_of_type = [bc for bc in bad_channels if bc in type_channels]
+    selected_bad_channels = random.sample(bad_channels_of_type, min(len(bad_channels_of_type), num_bad_channels))
+    print('Selected bad channels:', selected_bad_channels)
+
+    # Calculate number of good channels needed
+    num_good_channels = 15 - len(selected_bad_channels)
+    selected_good_channels = random.sample(good_channels, min(len(good_channels), num_good_channels))
+    print('Selected good channels:', selected_good_channels)
+    
+    # Combine and shuffle the final list
+    final_selection = selected_good_channels + selected_bad_channels
+    random.shuffle(final_selection)
+
+    # Create a list indicating whether each channel is good (0) or bad (1)
+    channel_status = [0 if ch in selected_good_channels else 1 for ch in final_selection]
+    badChansInDisplay = [ch for ch in final_selection if ch in bad_channels]
+    return final_selection, badChansInDisplay
 
 def display_message(message, color):
     """Displays a temporary window with a message."""
