@@ -53,6 +53,10 @@ for i in range(10):#preparing 10 versions of the trialsequence for now
     paired = list(zip(all_trials, all_bad_channels))
     # Shuffle the pairs
     random.shuffle(paired)
+
+    # Ensure the directory exists
+    os.makedirs('trial_data', exist_ok=True)
+
     # Save the paired list to disk
     with open(f'trial_data\\trial_data_{i+1}.pkl', 'wb') as f:
         pickle.dump(paired, f)
