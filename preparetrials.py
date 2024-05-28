@@ -15,14 +15,12 @@ import random
 from sklearn.utils import shuffle
 import pickle
 
-# Load Preprocessed Data Function 
+
 data_path = 'processed_data\\'  # Directory to save preprocessed files 
 fileList = ['FADM9A_session1_run01.fif_preprocessed-raw.fif', '03TPZ5_session2_run01.fif_preprocessed-raw.fif']
 
 for i in range(10):#preparing 10 versions of the trialsequence for now
-    # Initialize lists to store the trial data and bad channels
-    all_trials = []
-    all_bad_channels = []
+    trial_num = 0
     for file in fileList:
         print('Processing file:', file)
         file_path = os.path.join(data_path, file)    
@@ -47,13 +45,31 @@ for i in range(10):#preparing 10 versions of the trialsequence for now
                 channels_to_display, badChansInDisplay = hf.select_and_shuffle_channels(raw_filtered, bad_channel_list, file_type)
                 #object containing only the channels to display
                 trialData = raw_filtered.copy().pick(channels_to_display)
-                all_trials.append(trialData)
-                all_bad_channels.append(badChansInDisplay)
-    #randomize the trial order (making sure that the bad channels are still associated with the correct trial by pairing them)
-    paired = list(zip(all_trials, all_bad_channels))
-    # Shuffle the pairs
-    random.shuffle(paired)
-    # Save the paired list to disk
-    with open(f'trial_data\\trial_data_{i+1}.pkl', 'wb') as f:
-        pickle.dump(paired, f)
+                # Pair the trial data with the bad channels
+                pair = (trialData, badChansInDisplay)
+                # Save the pair to disk
+                with open(f'trial_data\\trial_{trial_num}_{i+1}.pkl', 'wb') as f:
+                    pickle.dump(pair, f)
+                trial_num += 1
 #%%
+# Directory where the trial files are stored
+trial_data_dir = 'trial_data\\'
+
+# Get a list of all the trial files
+trial_files = [os.path.join(trial_data_dir, file) for file in os.listdir(trial_data_dir) if file.startswith('trial_data')]
+
+# Randomly sample 100 trial files
+sampled_files = random.sample(trial_files, 100)
+
+# Initialize list to store the sampled trials
+sampled_trials = []
+
+# Load the sampled trials and append them to the list
+for file in sampled_files:
+    with open(file, 'rb') as f:
+        trial = pickle.load(f)
+        sampled_trials.append(trial)
+
+# Save the sampled trials to a new file
+with open('sampled_trials.pkl', 'wb') as f:
+    pickle.dump(sampled_trials, f)
