@@ -56,7 +56,7 @@ for i in range(10):#preparing 10 versions of the trialsequence for now
 trial_data_dir = 'trial_data\\'
 
 # Get a list of all the trial files
-trial_files = [os.path.join(trial_data_dir, file) for file in os.listdir(trial_data_dir) if file.startswith('trial_data')]
+trial_files = [os.path.join(trial_data_dir, file) for file in os.listdir(trial_data_dir) if file.startswith('trial')]
 
 # Randomly sample 100 trial files
 sampled_files = random.sample(trial_files, 100)
@@ -73,3 +73,4 @@ for file in sampled_files:
 # Save the sampled trials to a new file
 with open('sampled_trials.pkl', 'wb') as f:
     pickle.dump(sampled_trials, f)
+# %%
