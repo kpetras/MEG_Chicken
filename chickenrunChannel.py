@@ -25,6 +25,12 @@ from tkinter import messagebox
 import pickle
 import csv
 
+def show_instructions():
+    instructions1 = "Welcome in this EEG and MEG data classification experiment ! EEG and MEG recordings will be displayed on the screen. If you think a channel is contaminated by artifacts, you can click on it."
+    instructions2 = "You can select multiple channels or no channel at all. To validate your answer and display the next trial, you can press TAB. Good luck !"
+    messagebox.showinfo("Instructions - Page 1", instructions1)
+    messagebox.showinfo("Instructions - Page 2", instructions2)
+
 def on_press(key):
     if key == keyboard.Key.space:
         shared['space_pressed'] = True        
@@ -48,6 +54,9 @@ def submit():
     if not experienceLevel.isdigit() or int(experienceLevel) < 1 or int(experienceLevel) > 4:
         messagebox.showerror("Invalid input", "Experience level must be a number between 1 and 4")
         return
+    
+    # Call the function to display the instructions before starting the task
+    show_instructions()
 
     # Close the window after the inputs are saved
     window.destroy()
@@ -61,6 +70,7 @@ entry2 = create_label_entry(window, "Experience Level, from very experienced to 
 entry3 = create_label_entry(window, "Sequence Number (1-10)", 2)
 submit_button = tk.Button(window, text="Submit", command=submit)
 submit_button.grid(row=3, column=0, columnspan=2)
+
 # Start the GUI event loop
 window.mainloop()
 

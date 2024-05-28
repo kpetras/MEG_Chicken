@@ -78,33 +78,33 @@ def compare_initial_final_performance(metrics):
 control_dir = r"c:\Users\stagaire\Desktop\Repository\MEG_Chicken\control"
 experimental_dir = r"c:\Users\stagaire\Desktop\Repository\MEG_Chicken\experimental"
 
-control_results_bads = extract_and_average_results(control_dir, 'bads_results')
+#control_results_bads = extract_and_average_results(control_dir, 'bads_results')
 experimental_results_bads = extract_and_average_results(experimental_dir, 'bads_results')
 
-# Two-sample t-test
-print("\nComparing control vs experimental - Bads:")
-compare_performance(control_results_bads[0], experimental_results_bads[0])
+# # Two-sample t-test
+# print("\nComparing control vs experimental - Bads:")
+# compare_performance(control_results_bads[0], experimental_results_bads[0])
 
-# Paired-sample t-test
-print("\nComparing initial vs final - Control - Bads:")
-compare_initial_final_performance(control_results_bads)
+# # Paired-sample t-test
+# print("\nComparing initial vs final - Control - Bads:")
+# compare_initial_final_performance(control_results_bads)
 
 print("\nComparing initial vs final - Experimental - Bads:")
 compare_initial_final_performance(experimental_results_bads)
 
-control_results_icas = extract_and_average_results(control_dir, 'ICs_results')
-experimental_results_icas = extract_and_average_results(experimental_dir, 'ICs_results')
+# control_results_icas = extract_and_average_results(control_dir, 'ICs_results')
+# experimental_results_icas = extract_and_average_results(experimental_dir, 'ICs_results')
 
-# Two-sample t-test
-print("\nComparing control vs experimental - ICs:")
-compare_performance(control_results_icas[0], experimental_results_icas[0])
+# # Two-sample t-test
+# print("\nComparing control vs experimental - ICs:")
+# compare_performance(control_results_icas[0], experimental_results_icas[0])
 
-# Paired-sample t-test
-print("\nComparing initial vs final - Control - ICs:")
-compare_initial_final_performance(control_results_icas)
+# # Paired-sample t-test
+# print("\nComparing initial vs final - Control - ICs:")
+# compare_initial_final_performance(control_results_icas)
 
-print("\nComparing initial vs final - Experimental - ICs:")
-compare_initial_final_performance(experimental_results_icas)
+# print("\nComparing initial vs final - Experimental - ICs:")
+# compare_initial_final_performance(experimental_results_icas)
 
 # %%
 import os
