@@ -5,7 +5,6 @@ from statistics import mean
 import numpy as np
 from scipy.stats import ttest_ind, ttest_rel
 
-
 def calculate_averages(files):
     """Calculate the average metrics from a list of CSV files."""
     hits, false_alarms, correct_rejections, misses = [], [], [], []

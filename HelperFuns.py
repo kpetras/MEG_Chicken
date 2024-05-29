@@ -10,7 +10,6 @@ import os
 import random
 
 
-
 def select_and_shuffle_channels(raw, bad_channels, channel_type):
     """Selects and shuffles a list of channels of a specific type including a random selection of bad ones."""
     all_channels = raw.ch_names
