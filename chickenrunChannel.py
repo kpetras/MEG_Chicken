@@ -77,12 +77,13 @@ window.mainloop()
 dataPath = 'trial_data\\'  
 fileList = os.listdir(dataPath)
 # Get the trial data
-filePath = np.random.choice(fileList, 100, replace=False)
+nTrial = 5
+filePath = np.random.choice(fileList, nTrial, replace=False)
 
 results = []
 #start the loop over trials
 count=1
-for trial in range(100):
+for trial in range(nTrial):
     #load the data
     with open(dataPath + filePath[trial], 'rb') as f:
         pairedData = pickle.load(f)
@@ -140,8 +141,10 @@ with open(filename, 'w', newline='') as f:
     # Write the results
     for i, trial_results in enumerate(results, start=1):
         writer.writerow([i, trial_results['hits'], trial_results['false_alarms'], trial_results['misses'], trial_results['correct_rejections']])
-fileList.save('fileList'+filename)
-
+#Save the file list used in the experiment
+with open('files_'+ filename, 'w') as f:
+    for item in filePath:
+        f.write("%s\n" % item)
 #%%
 
 
