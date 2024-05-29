@@ -45,10 +45,10 @@ def create_label_entry(window, text, row):
     return entry
 
 def submit():
-    global participantNumber, experienceLevel, SequenceNumber
+    global participantNumber, experienceLevel, SessionNumber
     participantNumber = entry1.get()
     experienceLevel = entry2.get()
-    SequenceNumber = entry3.get()
+    SessionNumber = entry3.get()
 
     # Check if experience level is between 1 and 4
     if not experienceLevel.isdigit() or int(experienceLevel) < 1 or int(experienceLevel) > 4:
@@ -63,11 +63,11 @@ def submit():
 
 participantNumber = None
 experienceLevel = None
-SequenceNumber = None
+SessionNumber = None
 window = tk.Tk()
 entry1 = create_label_entry(window, "Participant Number", 0)
 entry2 = create_label_entry(window, "Experience Level, from very experienced to fully naïve (1-4)", 1)
-entry3 = create_label_entry(window, "Sequence Number (1-10)", 2)
+entry3 = create_label_entry(window, "Session Number", 2)
 submit_button = tk.Button(window, text="Submit", command=submit)
 submit_button.grid(row=3, column=0, columnspan=2)
 
@@ -75,18 +75,21 @@ submit_button.grid(row=3, column=0, columnspan=2)
 window.mainloop()
 
 dataPath = 'trial_data\\'  
-file = f'trial_data_{SequenceNumber}.pkl'
-print('processing file: ', dataPath + file)
-filePath = os.path.join(dataPath, file)
-#load the data
-with open(filePath, 'rb') as f:
-    pairedData = pickle.load(f)
+fileList = os.listdir(dataPath)
+# Get the trial data
+filePath = np.random.choice(fileList, 100, replace=False)
 
-n_channels = pairedData[0][0].get_data().shape[0] #number of chans in display
 results = []
 #start the loop over trials
 count=1
-for trialData, badChansInDisplay in pairedData:
+for trial in range(100):
+    #load the data
+    with open(dataPath + filePath[trial], 'rb') as f:
+        pairedData = pickle.load(f)
+    print('processing file: ', filePath[trial])
+    trialData = pairedData[0]
+    badChansInDisplay = pairedData[1]
+    n_channels = pairedData[0].get_data().shape[0] #number of chans in display
     # open interactive window
     fig = trialData.plot(n_channels=n_channels, duration=2, block=False)
     print("trialNr:" + str(count))
@@ -129,7 +132,7 @@ for trialData, badChansInDisplay in pairedData:
     count+=1
 
 # Save results
-filename = f'results_participant_{participantNumber}_sequence_{SequenceNumber}_experience_{experienceLevel}.csv'
+filename = f'results_participant_{participantNumber}_session_{SessionNumber}_experience_{experienceLevel}.csv'
 with open(filename, 'w', newline='') as f:
     writer = csv.writer(f)
     # Write the header
@@ -137,6 +140,7 @@ with open(filename, 'w', newline='') as f:
     # Write the results
     for i, trial_results in enumerate(results, start=1):
         writer.writerow([i, trial_results['hits'], trial_results['false_alarms'], trial_results['misses'], trial_results['correct_rejections']])
+fileList.save('fileList'+filename)
 
 #%%
 
