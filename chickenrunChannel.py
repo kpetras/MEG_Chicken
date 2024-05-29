@@ -134,15 +134,19 @@ for trial in range(nTrial):
 
 # Save results
 filename = f'results_participant_{participantNumber}_session_{SessionNumber}_experience_{experienceLevel}.csv'
-with open(filename, 'w', newline='') as f:
+results_path = os.path.join('experimental', 'channel_results', filename)
+with open(results_path, 'w', newline='') as f:
     writer = csv.writer(f)
     # Write the header
     writer.writerow(['trial', 'hits', 'false_alarms', 'misses', 'correct_rejections'])
     # Write the results
     for i, trial_results in enumerate(results, start=1):
         writer.writerow([i, trial_results['hits'], trial_results['false_alarms'], trial_results['misses'], trial_results['correct_rejections']])
-#Save the file list used in the experiment
-with open('files_'+ filename, 'w') as f:
+
+# Save the file list used in the experiment
+filelist_filename = 'files_' + filename
+filelist_path = os.path.join('experimental', 'channel_results', filelist_filename)
+with open(filelist_path, 'w') as f:
     for item in filePath:
         f.write("%s\n" % item)
 #%%
