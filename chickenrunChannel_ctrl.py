@@ -1,7 +1,7 @@
 # chickenrun_exp.py
 
 ####################
-# block for the experimental group (with feedback)
+# block for the control group (without feedback)
 ####################
 
 # %%
@@ -139,7 +139,7 @@ for trial in range(nTrial):
 
 # Save results
 filename = f'results_participant_{participantNumber}_session_{SessionNumber}_experience_{experienceLevel}.csv'
-results_path = os.path.join('experimental', 'channel_results', filename)
+results_path = os.path.join('control', 'channel_results', filename)
 with open(results_path, 'w', newline='') as f:
     writer = csv.writer(f)
     # Write the header
@@ -150,7 +150,7 @@ with open(results_path, 'w', newline='') as f:
 
 # Save the file list used in the experiment
 filelist_filename = 'files_' + filename
-filelist_path = os.path.join('experimental', 'channel_results', filelist_filename)
+filelist_path = os.path.join('control', 'channel_results', filelist_filename)
 with open(filelist_path, 'w') as f:
     for item in filePath:
         f.write("%s\n" % item)
