@@ -27,10 +27,12 @@ import csv
 from slides import display_slides
 
 def show_instructions():
-    instructions1 = "Welcome in this EEG and MEG data classification experiment ! EEG and MEG recordings will be displayed on the screen. If you think a channel is contaminated by artifacts, you can click on it."
-    instructions2 = "You can select multiple channels or no channel at all. To validate your answer and display the next trial, you can press TAB. Good luck !"
+    instructions1 = "Welcome in this EEG and MEG data classification experiment ! Some slides will be displayed on the screen to teach you how to recognize artifacts in EEG and MEG recordings. Take your time to read them, you can go back to review the slides. Once you are ready, you can close the window slides to start the experiment."
+    instructions2 = "Then, EEG and MEG recordings will be displayed on the screen. If you think a channel is contaminated by artifacts, you can click on it."
+    instructions3 = "You can select multiple channels or no channel at all. To validate your answer and display the next trial, you can press TAB. Good luck !"
     messagebox.showinfo("Instructions - Page 1", instructions1)
     messagebox.showinfo("Instructions - Page 2", instructions2)
+    messagebox.showinfo("Instructions - Page 2", instructions3)
 
 def on_press(key):
     if key == keyboard.Key.space:
