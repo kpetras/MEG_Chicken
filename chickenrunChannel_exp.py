@@ -77,7 +77,7 @@ window.mainloop()
 dataPath = 'trial_data\\'  
 fileList = os.listdir(dataPath)
 # Get the trial data
-nTrial = 5
+nTrial = 350
 filePath = np.random.choice(fileList, nTrial, replace=False)
 
 results = []
