@@ -29,6 +29,7 @@ This experiment is designed to classify and identify artifacts in EEG and MEG da
 ```bash
 git clone https://github.com/yourusername/EEG-MEG-Classification-Experiment.git
 cd EEG-MEG-Classification-Experiment
+```bash
 
 ### Set Up the Environment
 
