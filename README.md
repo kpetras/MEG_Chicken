@@ -46,6 +46,7 @@ Run the preprocessing script:
 
 ```bash
 python preprocessing.py
+```
 
 ### Preparing Trials
 The prepare_trials.py script prepares trial data for the experiment by selecting and shuffling channels, and storing the prepared data.
@@ -57,7 +58,7 @@ Run the trial preparation script:
 
 ```bash
 python prepare_trials.py
-
+```
 ### Running the Experiment
 There are separate scripts for the experimental and control groups:
 
@@ -67,10 +68,10 @@ Running the Experimental Group Script
 
 ```bash
 python chickenrunChannel_exp.py
-
+```
 ```bash
 python chickenrunChannel_ctrl.py
-
+```
 ### Experiment Details
 
 Objective: To classify and identify artifacts in EEG and MEG data recordings.
