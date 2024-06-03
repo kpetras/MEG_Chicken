@@ -14,13 +14,12 @@ This repository contains the code and resources for an EEG and MEG data classifi
   - [Running the Experiment](#running-the-experiment)
 - [Experiment Details](#experiment-details)
 - [Results](#results)
-- [Contributing](#contributing)
 - [License](#license)
 - [Acknowledgements](#acknowledgements)
 
 ## Introduction
 
-This experiment is designed to classify and identify artifacts in EEG and MEG data recordings. Participants are divided into two groups: the experimental group receives feedback during the task, while the control group does not. The primary goal is to evaluate the effectiveness of feedback in improving artifact detection accuracy.
+This experiment is designed to identify artifacts in EEG and MEG data recordings. Participants are divided into two groups: the experimental group receives feedback during the task, while the control group does not. The primary goal is to evaluate the effectiveness of feedback in improving artifact detection accuracy.
 
 ## Installation
 
@@ -40,10 +39,9 @@ The preprocessing.py script handles loading and preprocessing of raw EEG and MEG
 
 ### Running Preprocessing
 
-Define the path to the raw data in preprocessing.py.
-List the files to preprocess.
-Run the preprocessing script:
-
+- Define the path to the raw data in `preprocessing.py`.
+- List the files to preprocess.
+- Run the preprocessing script:
 ```bash
 python preprocessing.py
 ```
@@ -53,8 +51,8 @@ The prepare_trials.py script prepares trial data for the experiment by selecting
 
 ### Running Trial Preparation
 
-Ensure the preprocessed data is available in the specified directory.
-Run the trial preparation script:
+- Ensure the preprocessed data is available in the specified directory.
+- Run the trial preparation script:
 
 ```bash
 python prepare_trials.py
@@ -62,22 +60,25 @@ python prepare_trials.py
 ### Running the Experiment
 There are separate scripts for the experimental and control groups:
 
-chickenrunChannel_exp.py for the experimental group
-chickenrunChannel_ctrl.py for the control group
-Running the Experimental Group Script
+- chickenrunChannel_exp.py for the experimental group
+- chickenrunChannel_ctrl.py for the control group
+
+### Running the Experimental Group Script
 
 ```bash
 python chickenrunChannel_exp.py
 ```
+
+### Running the Control Group Script
 ```bash
 python chickenrunChannel_ctrl.py
 ```
 ### Experiment Details
 
-Objective: To classify and identify artifacts in EEG and MEG data recordings.
-Methodology: Participants are shown EEG and MEG recordings and asked to identify channels contaminated by artifacts. Feedback is provided to the experimental group.
-Data: Preprocessed EEG and MEG recordings from multiple subjects and sessions.
-Analysis: Accuracy of artifact detection is measured and compared between the experimental and control groups.
+- Objective: To classify and identify artifacts in EEG and MEG data recordings.
+- Methodology: Participants are shown EEG and MEG recordings and asked to identify channels contaminated by artifacts. Feedback is provided to the experimental group.
+- Data: Preprocessed EEG and MEG recordings from multiple subjects and sessions.
+- Analysis: Accuracy of artifact detection is measured and compared between the experimental and control groups.
 
 ### Results
 
