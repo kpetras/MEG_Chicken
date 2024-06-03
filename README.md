@@ -83,9 +83,9 @@ Analysis: Accuracy of artifact detection is measured and compared between the ex
 
 Results are saved as CSV files in the experimental/channel_results and control/channel_results directories, including metrics such as hits, false alarms, misses, and correct rejections.
 
-### License
+## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the GNU General Public License v3.0. See the [LICENSE](LICENSE) file for details.
 
 ### Acknowledgements
 
