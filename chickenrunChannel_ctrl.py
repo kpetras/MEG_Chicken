@@ -84,7 +84,7 @@ display_slides(slide_folder)
 dataPath = 'trial_data\\'  
 fileList = os.listdir(dataPath)
 # Get the trial data
-nTrial = 100
+nTrial = 350
 filePath = np.random.choice(fileList, nTrial, replace=False)
 
 results = []
