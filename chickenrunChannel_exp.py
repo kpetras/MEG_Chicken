@@ -27,7 +27,7 @@ import csv
 
 def show_instructions():
     instructions1 = "Welcome in this EEG and MEG data classification experiment ! EEG and MEG recordings will be displayed on the screen. If you think a channel is contaminated by artifacts, you can click on it."
-    instructions2 = "You can select multiple channels or no channel at all. To validate your answer and display the next trial, you can press TAB. Good luck !"
+    instructions2 = "You can select multiple channels or no channel at all. You can scroll over time to examine the channel. To validate your answer and display the next trial, you can press TAB. Good luck !"
     messagebox.showinfo("Instructions - Page 1", instructions1)
     messagebox.showinfo("Instructions - Page 2", instructions2)
 
