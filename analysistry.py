@@ -1,5 +1,7 @@
 import pandas as pd
 import glob
+import matplotlib.pyplot as plt 
+from scipy import stats
 
 # Calculate averages for each participant in the control group and averages accross the control group
 # Calculate averages for each participant in the experimental group and averages accross the experimental group
@@ -198,4 +200,39 @@ plt.ylabel('Average correct responses')
 plt.title('Learning curve')
 plt.legend()
 plt.show()
+# %%
+from scipy import stats
+
+def calculate_averages(directory):
+    csv_files = glob.glob(f'{directory}/results*.csv')
+
+    averages_hits = []
+    averages_fa = []
+    averages_cr = []
+    averages_misses = []
+
+    for file in csv_files:
+        df = pd.read_csv(file)
+        averages_hits.append(df['hits'].mean())
+        averages_fa.append(df['false_alarms'].mean())
+        averages_cr.append(df['correct_rejections'].mean())
+        averages_misses.append(df['misses'].mean())
+
+    return averages_hits, averages_fa, averages_cr, averages_misses
+
+# Calculate averages for 'control' and 'experimental' directories
+control_averages = calculate_averages('control')
+experimental_averages = calculate_averages('experimental')
+
+# Perform t-tests
+t_test_hits = stats.ttest_ind(control_averages[0], experimental_averages[0])
+t_test_fa = stats.ttest_ind(control_averages[1], experimental_averages[1])
+t_test_cr = stats.ttest_ind(control_averages[2], experimental_averages[2])
+t_test_misses = stats.ttest_ind(control_averages[3], experimental_averages[3])
+
+print(f'T-test results:')
+print(f'Hits: {t_test_hits}')
+print(f'False Alarms: {t_test_fa}')
+print(f'Correct Rejections: {t_test_cr}')
+print(f'Misses: {t_test_misses}')
 # %%
