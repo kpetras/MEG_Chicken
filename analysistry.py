@@ -236,3 +236,60 @@ print(f'False Alarms: {t_test_fa}')
 print(f'Correct Rejections: {t_test_cr}')
 print(f'Misses: {t_test_misses}')
 # %%
+def calculate_averages(directory):
+    csv_files = glob.glob(f'{directory}/results*.csv')
+
+    averages_hits = []
+    averages_fa = []
+    averages_cr = []
+    averages_misses = []
+
+    for file in csv_files:
+        df = pd.read_csv(file)
+        last_10_trials = df.tail(10)  # Select the last 10 trials
+
+        print(f'Last 10 trials for file {file}:')
+        print(last_10_trials)
+
+        averages_hits.append(last_10_trials['hits'].mean())
+        averages_fa.append(last_10_trials['false_alarms'].mean())
+        averages_cr.append(last_10_trials['correct_rejections'].mean())
+        averages_misses.append(last_10_trials['misses'].mean())
+
+    # Calculate the overall averages for the last 10 trials across all files
+    overall_average_hits = sum(averages_hits) / len(averages_hits)
+    overall_average_fa = sum(averages_fa) / len(averages_fa)
+    overall_average_cr = sum(averages_cr) / len(averages_cr)
+    overall_average_misses = sum(averages_misses) / len(averages_misses)
+
+    return overall_average_hits, overall_average_fa, overall_average_cr, overall_average_misses
+
+# Calculate averages for 'control' and 'experimental' directories
+control_averages = calculate_averages('control')
+experimental_averages = calculate_averages('experimental')
+
+# Print the results
+print(f'Control group averages for the last 10 trials:')
+print(f'Hits: {control_averages[0]}')
+print(f'False Alarms: {control_averages[1]}')
+print(f'Correct Rejections: {control_averages[2]}')
+print(f'Misses: {control_averages[3]}')
+
+print(f'\nExperimental group averages for the last 10 trials:')
+print(f'Hits: {experimental_averages[0]}')
+print(f'False Alarms: {experimental_averages[1]}')
+print(f'Correct Rejections: {experimental_averages[2]}')
+print(f'Misses: {experimental_averages[3]}')
+
+# Perform t-tests
+t_test_hits = stats.ttest_ind(control_averages[0], experimental_averages[0])
+t_test_fa = stats.ttest_ind(control_averages[1], experimental_averages[1])
+t_test_cr = stats.ttest_ind(control_averages[2], experimental_averages[2])
+t_test_misses = stats.ttest_ind(control_averages[3], experimental_averages[3])
+
+print(f'T-test results for the last 10 trials:')
+print(f'Hits: {t_test_hits}')
+print(f'False Alarms: {t_test_fa}')
+print(f'Correct Rejections: {t_test_cr}')
+print(f'Misses: {t_test_misses}')
+# %%
