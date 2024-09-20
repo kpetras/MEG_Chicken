@@ -1,8 +1,8 @@
 # MEG_Chicken
 
-# EEG and MEG Data Classification Experiment
+# EEG and MEG artifact detection
 
-This repository contains the code and resources for an EEG and MEG data classification experiment. The experiment involves preprocessing EEG and MEG data, fitting Independent Component Analysis (ICA) models, preparing trials, and running an experiment with both control and experimental groups.
+This repository contains code and resources for an EEG and MEG artifact detection training program. Trainees can review and annotate data and receive immediate feedback on their choices. Trainers are encouraged to upload their own annotated data.
 
 ## Table of Contents
 
@@ -19,15 +19,14 @@ This repository contains the code and resources for an EEG and MEG data classifi
 
 ## Introduction
 
-This experiment is designed to identify artifacts in EEG and MEG data recordings. Participants are divided into two groups: the experimental group receives feedback during the task, while the control group does not. The primary goal is to evaluate the effectiveness of feedback in improving artifact detection accuracy.
-
+The detection of physiological and non-physiological artifacts in M/EEG data is notoriously subjective and relies on rigorous training. Here, we provide a simple tool, based on visualizations provided through MNE python, to train students to consistently detect different types of artifacts and real M/EEG data.
 ## Installation
 
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/EEG-MEG-Classification-Experiment.git
-cd EEG-MEG-Classification-Experiment
+git clone https://github.com/yourusername/MEG_Chicken.git
+cd MEG_Chicken
 ```
 
 ### Set Up the Environment
@@ -57,32 +56,11 @@ The prepare_trials.py script prepares trial data for the experiment by selecting
 ```bash
 python prepare_trials.py
 ```
-### Running the Experiment
-There are separate scripts for the experimental and control groups:
-
-- chickenrunChannel_exp.py for the experimental group
-- chickenrunChannel_ctrl.py for the control group
-
-### Running the Experimental Group Script
-
+### Running the training
 ```bash
-python chickenrunChannel_exp.py
+python chickenrun.py
 ```
 
-### Running the Control Group Script
-```bash
-python chickenrunChannel_ctrl.py
-```
-### Experiment Details
-
-- Objective: To classify and identify artifacts in EEG and MEG data recordings.
-- Methodology: Participants are shown EEG and MEG recordings and asked to identify channels contaminated by artifacts. Feedback is provided to the experimental group.
-- Data: Preprocessed EEG and MEG recordings from multiple subjects and sessions.
-- Analysis: Accuracy of artifact detection is measured and compared between the experimental and control groups.
-
-### Results
-
-Results are saved as CSV files in the experimental/channel_results and control/channel_results directories, including metrics such as hits, false alarms, misses, and correct rejections.
 
 ## License
 
