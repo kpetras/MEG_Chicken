@@ -24,6 +24,7 @@ import tkinter as tk
 from tkinter import messagebox
 import pickle
 import csv
+#%%
 
 def show_instructions():
     instructions1 = "Welcome in this EEG and MEG data classification experiment ! EEG and MEG recordings will be displayed on the screen. If you think a channel is contaminated by artifacts, you can click on it."
@@ -77,7 +78,7 @@ window.mainloop()
 dataPath = 'trial_data\\'  
 fileList = os.listdir(dataPath)
 # Get the trial data
-nTrial = 350
+nTrial = 100
 filePath = np.random.choice(fileList, nTrial, replace=False)
 
 results = []
