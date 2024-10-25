@@ -76,8 +76,7 @@ if __name__ == "__main__":
     save_dir = os.path.join('data', 'preprocessed')  # Processed data directory
     ica_dir = os.path.join('data', 'ica')  # ICA save directory
 
-    #raw_filenames = ['2XXX72_session1_run01.fif', 'FADM9A_session1_run01.fif']  # List your raw data files here
-    raw_filenames = os.listdir(data_dir)
+    raw_filenames = [f for f in os.listdir(data_dir) if not f.startswith('.')]
 
     for raw_filename in raw_filenames:
         raw_filepath = os.path.join(data_dir, raw_filename)
@@ -89,6 +88,7 @@ if __name__ == "__main__":
         save_raw_data(preprocessed_raw, preprocessed_save_path)
 
         # Fit and save ICA
+        # Only a part of the data needs to perform ica, haven't figure out a way to avoid hard coding.
         ica_filename = raw_filename.replace('_raw.fif', '_ica.fif')
         ica_save_path = os.path.join(ica_dir, ica_filename)
         fit_and_save_ica(preprocessed_raw, ica_save_path)

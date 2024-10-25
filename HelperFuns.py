@@ -7,7 +7,7 @@ from pynput import keyboard
 import os
 import random
 
-def select_and_shuffle_channels(raw, bad_channels, channel_type, total_channels=15, max_bad_channels=3):
+def select_and_shuffle_channels(raw, bad_channels, channel_type, total_channels=15, max_bad_channels=3, min_bad_channels = 1):
     """
     Selects and shuffles channels of a specific type, including a random selection of bad ones.
 
@@ -38,7 +38,7 @@ def select_and_shuffle_channels(raw, bad_channels, channel_type, total_channels=
     bad_channels_in_type = [ch for ch in bad_channels if ch in type_channels]
 
     # Randomly select bad channels
-    num_bad = min(random.randint(0, max_bad_channels), len(bad_channels_in_type))
+    num_bad = min(random.randint(min_bad_channels, max_bad_channels), len(bad_channels_in_type))
     selected_bad_channels = random.sample(bad_channels_in_type, num_bad)
 
     # Randomly select good channels

@@ -36,13 +36,12 @@ def create_label_entry(window, text, row):
     entry.grid(row=row, column=1)
     return entry
 
-def run_experiment(participant_number, experience_level, session_number, feedback=True, group='experimental', n_trials=100):
+def run_experiment(participant_number, experience_level, session_number, feedback=True, n_trials=10):
     """
     Runs the EEG/MEG data classification experiment.
 
     Args:
         feedback (bool): Whether to provide feedback (True for experimental group, False for control group).
-        group (str): Group name ('experimental' or 'control') used for saving results.
     """
     # Display slides (if any)
     slide_folder = 'slides'
@@ -60,6 +59,7 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
             trial_data, bad_channels_in_display = pickle.load(f)
         print(f'Processing file: {trial_file} (Trial {count}/{n_trials})')
         n_channels = trial_data.info['nchan']
+        print(bad_channels_in_display)
 
         # Shared data
         shared = {
@@ -90,11 +90,13 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
                 if ch_name in ch_names:
                     if ch_name in trial_data.info['bads']:
                         # Remove from bads
+                        shared['selected_channels'].remove(ch_name)
                         trial_data.info['bads'].remove(ch_name)
                         message = f"Unmarked {ch_name} as bad."
                         color = 'green' if ch_name not in bad_channels_in_display else 'red'
                     else:
                         # Add to bads
+                        shared['selected_channels'].add(ch_name)
                         trial_data.info['bads'].append(ch_name)
                         message = f"Marked {ch_name} as bad."
                         color = 'green' if ch_name in bad_channels_in_display else 'red'
@@ -129,15 +131,20 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
                 plt.close('all')
 
         # Open interactive window
+        # fig = trial_data.plot(
+        #     n_channels=n_channels,
+        #     duration=2,
+        #     block=False,
+        #     show=False,
+        #     picks='all',
+        #     title=f'Trial {count}/{n_trials}',
+        #     proj=False,
+        #     show_scrollbars=True
+        # )
         fig = trial_data.plot(
             n_channels=n_channels,
             duration=2,
-            block=False,
-            show=False,
-            picks='all',
-            title=f'Trial {count}/{n_trials}',
-            proj=False,
-            show_scrollbars=True
+            block=False
         )
 
         # Connect event handlers
@@ -157,7 +164,7 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
         results.append(trial_results)
 
     # Save results to a CSV file
-    output_filename = f"results_{participant_number}_{session_number}_{group}.csv"
+    output_filename = f"results_{participant_number}_{session_number}_{experience_level}_{'exp' if feedback else 'ctrl'}.csv"
     with open(output_filename, 'w', newline='') as csvfile:
         fieldnames = ['Trial', 'Hits', 'False Alarms', 'Misses', 'Correct Rejections']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -170,22 +177,22 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
                 'Misses': trial_result['misses'],
                 'Correct Rejections': trial_result['correct_rejections']
             })
+    plt.close('all')  # Ensure all matplotlib windows are closed.
+    root.quit()  # This will ensure the tkinter event loop stops.
     print('Experiment completed. Results saved.')
 
 def on_submit():
-    # Retrieve participant information
     participant_number = participant_number_entry.get()
     experience_level = experience_level_entry.get()
     session_number = session_number_entry.get()
 
-    # Validate experience level
     if not experience_level.isdigit() or not (1 <= int(experience_level) <= 4):
         messagebox.showerror("Invalid Input", "Experience level must be a number between 1 and 4.")
         return
     window.destroy()
     show_instructions()
 
-    run_experiment(participant_number, experience_level, session_number, feedback=feedback, group=group)
+    run_experiment(participant_number, experience_level, session_number, feedback=feedback)
 
 if __name__ == "__main__":
     # Ask the user to select the group type
@@ -197,10 +204,8 @@ if __name__ == "__main__":
     )
     if group_choice == 'yes':
         feedback = True
-        group = 'experimental'
     else:
         feedback = False
-        group = 'control'
     window = tk.Tk()
     window.title("Participant Information")
     participant_number_entry = create_label_entry(window, "Participant Number:", 0)

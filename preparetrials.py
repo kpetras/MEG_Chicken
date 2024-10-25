@@ -7,7 +7,7 @@ from HelperFuns import select_and_shuffle_channels
 from config import badC_EEG, badC_MEG
 import mne
 
-def prepare_trials(data_dir, output_dir, n_versions=10, trials_per_file=10):
+def prepare_trials(data_dir, output_dir, n_versions=5, trials_per_file=5):
     """
     Prepares trial data by selecting and shuffling channels, and saves them for experiments.
 
@@ -25,6 +25,7 @@ def prepare_trials(data_dir, output_dir, n_versions=10, trials_per_file=10):
         for data_file in data_files:
             file_path = os.path.join(data_dir, data_file)
             subj, ses, run = data_file.split('_')[:3]
+            run_ind = run + '.fif'
             # Added allow_maxshield=True because of ValueError: This file contains raw Internal Active Shielding data. 
             # It may be distorted. Elekta recommends it be run through MaxFilter to produce reliable results. Consider closing the file and running MaxFilter on the data.
             # Use allow_maxshield=True if you are sure you want to load the data despite this warning.
@@ -32,30 +33,33 @@ def prepare_trials(data_dir, output_dir, n_versions=10, trials_per_file=10):
 
             for channel_type in ['EEG', 'Mag', 'Grad']:
                 if channel_type == 'EEG':
-                    bad_channels = badC_EEG.get(subj, {}).get(ses, {}).get(run, [])
+                    # bad_channels = badC_EEG.get(subj, {}).get(ses, {}).get(run, [])
+                    bad_channels = badC_EEG[subj][ses][run_ind]
                 else:
-                    bad_channels = badC_MEG.get(subj, {}).get(ses, {}).get(run, [])
+                    bad_channels = badC_MEG[subj][ses][run_ind]
                     if channel_type == 'Mag':
                         bad_channels = [ch for ch in bad_channels if ch.endswith('1')]
                     elif channel_type == 'Grad':
                         bad_channels = [ch for ch in bad_channels if ch.endswith(('2', '3'))]
-
+                print(channel_type)
                 for _ in range(trials_per_file):
                     channels_to_display, bad_chans_in_display = select_and_shuffle_channels(
                         raw_preprocessed, bad_channels, channel_type
                     )
+                    
                     # trial_data = raw_preprocessed.copy().pick_channels(channels_to_display)
                     trial_data = raw_preprocessed.copy().pick(channels_to_display)
                     # Pair the trial data with the bad channels
                     trial_pair = (trial_data, bad_chans_in_display)
-                    # trial_filename = f'trial_{trial_num}_v{version+1}.pkl'
                     trial_filename = f'trial_{trial_num}_{version+1}.pkl'
                     trial_filepath = os.path.join(output_dir, trial_filename)
+                    print(trial_filename)
+                    print(bad_chans_in_display)
                     with open(trial_filepath, 'wb') as f:
                         pickle.dump(trial_pair, f)
                     trial_num += 1
 
-def sample_trials(trial_dir, sample_file, n_samples=100):
+def sample_trials(trial_dir, sample_file, n_samples=10):
     """
     Randomly samples trials from the prepared trial data and saves them.
 
