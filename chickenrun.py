@@ -3,12 +3,17 @@ import numpy as np
 import mne
 import tkinter as tk
 from tkinter import messagebox
-import matplotlib.pyplot as plt
 import pickle
 import csv
 import random
 from slides import display_slides
-
+from ica_plot import custome_ica_plot
+from config import ICA_remove_inds
+import matplotlib
+matplotlib.use('tkagg')
+import matplotlib.pyplot as plt
+plt.ion()
+# ['gtk3agg', 'gtk3cairo', 'gtk4agg', 'gtk4cairo', 'macosx', 'nbagg', 'notebook', 'qtagg', 'qtcairo', 'qt5agg', 'qt5cairo', 'tkagg', 'tkcairo', 'webagg', 'wx', 'wxagg', 'wxcairo', 'agg', 'cairo', 'pdf', 'pgf', 'ps', 'svg', 'template', 'inline']
 def show_instructions():
     instructions1 = (
         "Welcome to this EEG and MEG data classification experiment! "
@@ -36,133 +41,206 @@ def create_label_entry(window, text, row):
     entry.grid(row=row, column=1)
     return entry
 
-def run_experiment(participant_number, experience_level, session_number, feedback=True, n_trials=10):
+def display_feedback(fig, message, color='black'):
+    # Remove previous feedback text
+    if hasattr(display_feedback, 'text'):
+        display_feedback.text.remove()
+    # Add new feedback text
+    display_feedback.text = fig.mne.ax_main.text(
+        0.5, 1.01, message, transform=fig.mne.ax_main.transAxes,
+        ha='center', va='bottom', color=color, fontsize=12
+    )
+    fig.canvas.draw_idle()
+
+def run_experiment(participant_number, experience_level, session_number, feedback=True, n_trials=10, mode_ica=True):
     """
     Runs the EEG/MEG data classification experiment.
 
     Args:
         feedback (bool): Whether to provide feedback (True for experimental group, False for control group).
+        n_trials (ind): Total number of trials.
+        mode_ica (bool): Whether to include ICA functionality.
     """
     # Display slides (if any)
-    slide_folder = 'slides'
-    if os.path.exists(slide_folder):
-        display_slides(slide_folder)
+    # slide_folder = 'slides'
+    # if os.path.exists(slide_folder):
+    #     display_slides(slide_folder)
 
-    data_path = 'data/trial_data'
-    file_list = os.listdir(data_path)
-    file_paths = np.random.choice(file_list, n_trials, replace=False)
+    if not mode_ica:
+        data_path = os.path.join('data', 'trial_data')
+        file_list =  [f for f in os.listdir(data_path) if not f.startswith('.')]
+        file_paths = np.random.choice(file_list, n_trials, replace=False)
+    else:
+        data_path = os.path.join('data', 'ica')
+        file_paths = [f for f in os.listdir(data_path) if f.endswith('_ica.fif')]
 
     results = []
     for count, trial_file in enumerate(file_paths, start=1):
-        # Load the trial data
-        with open(os.path.join(data_path, trial_file), 'rb') as f:
-            trial_data, bad_channels_in_display = pickle.load(f)
-        print(f'Processing file: {trial_file} (Trial {count}/{n_trials})')
-        n_channels = trial_data.info['nchan']
-        print(bad_channels_in_display)
+        # Load the trial data for non-ica
+        if not mode_ica:
+            with open(os.path.join(data_path, trial_file), 'rb') as f:
+                trial_data, bad_channels_in_display = pickle.load(f)
+            print(f'Processing file: {trial_file} (Trial {count}/{n_trials})')
+            n_channels = trial_data.info['nchan']
+        else:
+            # load ica information
+            subj, ses, run = trial_file.split('_')[:3]
+            run_ind = run + '.fif'
+            ICA_remove_inds_list = ICA_remove_inds[subj][run_ind]
 
-        # Shared data
-        shared = {
-            'hits': 0,
-            'false_alarms': 0,
-            'misses': 0,
-            'correct_rejections': n_channels - len(bad_channels_in_display),
-            'selected_channels': set(),
-            'done': False,
-            'previous_bads': set()
-        }
-        def display_feedback(fig, message, color='black'):
-            # Remove previous feedback text
-            if hasattr(display_feedback, 'text'):
-                display_feedback.text.remove()
-            # Add new feedback text
-            display_feedback.text = fig.mne.ax_main.text(
-                0.5, 1.01, message, transform=fig.mne.ax_main.transAxes,
-                ha='center', va='bottom', color=color, fontsize=12
+        if not mode_ica:
+            # Shared data
+            shared = {
+                'hits': 0,
+                'false_alarms': 0,
+                'misses': 0,
+                'correct_rejections': n_channels - len(bad_channels_in_display),
+                'selected_channels': set(),
+                'done': False,
+                'previous_bads': set()
+            }
+            # def display_feedback(fig, message, color='black'):
+            #     # Remove previous feedback text
+            #     if hasattr(display_feedback, 'text'):
+            #         display_feedback.text.remove()
+            #     # Add new feedback text
+            #     display_feedback.text = fig.mne.ax_main.text(
+            #         0.5, 1.01, message, transform=fig.mne.ax_main.transAxes,
+            #         ha='center', va='bottom', color=color, fontsize=12
+            #     )
+            #     fig.canvas.draw_idle()
+
+            def on_pick(event):
+                artist = event.artist
+                if isinstance(artist, plt.Text):
+                    ch_name = artist.get_text()
+                    ch_names = trial_data.info['ch_names']
+                    if ch_name in ch_names:
+                        if ch_name in trial_data.info['bads']:
+                            # Remove from bads
+                            shared['selected_channels'].remove(ch_name)
+                            trial_data.info['bads'].remove(ch_name)
+                            message = f"Unmarked {ch_name} as bad."
+                            color = 'green' if ch_name not in bad_channels_in_display else 'red'
+                        else:
+                            # Add to bads
+                            shared['selected_channels'].add(ch_name)
+                            trial_data.info['bads'].append(ch_name)
+                            message = f"Marked {ch_name} as bad."
+                            color = 'green' if ch_name in bad_channels_in_display else 'red'
+                        # Provide immediate feedback
+                        display_feedback(fig, message, color)
+                        
+            def on_key(event):
+                if event.key == 'tab':
+                    # Finish the trial
+                    fig.canvas.mpl_disconnect(cid_pick)
+                    fig.canvas.mpl_disconnect(cid_key)
+                    plt.close(fig)
+
+                    # Evaluate results
+                    selected = shared['selected_channels']
+                    hits = len(selected & set(bad_channels_in_display))
+                    false_alarms = len(selected - set(bad_channels_in_display))
+                    misses = len(set(bad_channels_in_display) - selected)
+                    correct_rejections = n_channels - len(selected | set(bad_channels_in_display))
+                    shared['hits'] = hits
+                    shared['false_alarms'] = false_alarms
+                    shared['misses'] = misses
+                    shared['correct_rejections'] = correct_rejections
+                    # Add feedback if needed
+                    if feedback:
+                        messagebox.showinfo(
+                            "Feedback",
+                            f"Hits: {hits}\nFalse Alarms: {false_alarms}\nMisses: {misses}\nCorrect Rejections: {correct_rejections}"
+                        )
+
+                    # Proceed to next trial
+                    plt.close('all')
+
+            fig = trial_data.plot(
+                n_channels=n_channels,
+                duration=2,
+                block=False
             )
-            fig.canvas.draw_idle()
 
-        def on_pick(event):
-            artist = event.artist
-            if isinstance(artist, plt.Text):
-                ch_name = artist.get_text()
-                ch_names = trial_data.info['ch_names']
-                if ch_name in ch_names:
-                    if ch_name in trial_data.info['bads']:
-                        # Remove from bads
-                        shared['selected_channels'].remove(ch_name)
-                        trial_data.info['bads'].remove(ch_name)
-                        message = f"Unmarked {ch_name} as bad."
-                        color = 'green' if ch_name not in bad_channels_in_display else 'red'
-                    else:
-                        # Add to bads
-                        shared['selected_channels'].add(ch_name)
-                        trial_data.info['bads'].append(ch_name)
-                        message = f"Marked {ch_name} as bad."
-                        color = 'green' if ch_name in bad_channels_in_display else 'red'
-                    # Provide immediate feedback
-                    display_feedback(fig, message, color)
-                    
-        def on_key(event):
-            if event.key == 'tab':
-                # Finish the trial
-                fig.canvas.mpl_disconnect(cid_pick)
-                fig.canvas.mpl_disconnect(cid_key)
-                plt.close(fig)
+            # Connect event handlers
+            cid_pick = fig.canvas.mpl_connect('pick_event', on_pick)
+            cid_key = fig.canvas.mpl_connect('key_press_event', on_key)
 
-                # Evaluate results
-                selected = shared['selected_channels']
-                hits = len(selected & set(bad_channels_in_display))
-                false_alarms = len(selected - set(bad_channels_in_display))
-                misses = len(set(bad_channels_in_display) - selected)
-                correct_rejections = n_channels - len(selected | set(bad_channels_in_display))
-                shared['hits'] = hits
-                shared['false_alarms'] = false_alarms
-                shared['misses'] = misses
-                shared['correct_rejections'] = correct_rejections
-                # Add feedback if needed
-                if feedback:
-                    messagebox.showinfo(
-                        "Feedback",
-                        f"Hits: {hits}\nFalse Alarms: {false_alarms}\nMisses: {misses}\nCorrect Rejections: {correct_rejections}"
-                    )
+            # Show the plot and start the event loop
+            plt.show(block=True)
 
-                # Proceed to next trial
-                plt.close('all')
+            # Collect results
+            trial_results = {
+                'hits': shared.get('hits', 0),
+                'false_alarms': shared.get('false_alarms', 0),
+                'misses': shared.get('misses', 0),
+                'correct_rejections': shared.get('correct_rejections', 0)
+            }
+            results.append(trial_results)
+#######################################################
+        else: 
+            # chs_type = 'eeg' # ['mag', 'grad', 'eeg']
+            file_path = os.path.join('data', 'ica' ,trial_file)
+            ica = mne.preprocessing.read_ica(file_path)
+            raw_file_name = subj + '_'+ ses +'_'+ run + '_raw.fif'
+            raw_file_path = os.path.join('data', 'raw',raw_file_name)
+            raw_preprocessed = mne.io.read_raw_fif(raw_file_path, preload=True, allow_maxshield=True)
+            
+            shared = {
+                'hits': 0,
+                'false_alarms': 0,
+                'misses': 0,
+                'correct_rejections': 0,
+                'done': False,
+                'previous_exclude': set(ica.exclude)
+            }        
 
-        # Open interactive window
-        # fig = trial_data.plot(
-        #     n_channels=n_channels,
-        #     duration=2,
-        #     block=False,
-        #     show=False,
-        #     picks='all',
-        #     title=f'Trial {count}/{n_trials}',
-        #     proj=False,
-        #     show_scrollbars=True
-        # )
-        fig = trial_data.plot(
-            n_channels=n_channels,
-            duration=2,
-            block=False
-        )
+            # Show the plot and start the event loop
+            n_components = 50 # number of components per page
+            # fig = ica.plot_components(nrows = 5, ncols = 10, inst = raw_preprocessed)
+            fig = custome_ica_plot(ica, ICA_remove_inds_list, nrows = 5, ncols = 10, inst = raw_preprocessed)
+            def on_key(event):
+                if event.key == 'tab':
+                    # Finish the trial
+                    fig.canvas.mpl_disconnect(cid_key)
+                    plt.close(fig)
 
-        # Connect event handlers
-        cid_pick = fig.canvas.mpl_connect('pick_event', on_pick)
-        cid_key = fig.canvas.mpl_connect('key_press_event', on_key)
+                    # Evaluate results
+                    selected = set(ica.exclude)
+                    hits = len(selected & set(ICA_remove_inds_list))
+                    false_alarms = len(selected - set(ICA_remove_inds_list))
+                    misses = len(set(ICA_remove_inds_list) - selected)
+                    correct_rejections = n_components - len(selected | set(ICA_remove_inds_list))
+                    shared['hits'] = hits
+                    shared['false_alarms'] = false_alarms
+                    shared['misses'] = misses
+                    shared['correct_rejections'] = correct_rejections
+                    # Add feedback if needed
+                    if feedback:
+                        messagebox.showinfo(
+                            "Feedback",
+                            f"Hits: {hits}\nFalse Alarms: {false_alarms}\nMisses: {misses}\nCorrect Rejections: {correct_rejections}"
+                        )
 
-        # Show the plot and start the event loop
-        plt.show(block=True)
+                    # Proceed to next trial
+                    plt.close('all')
+            cid_key = fig.canvas.mpl_connect('key_press_event', on_key)
 
-        # Collect results
-        trial_results = {
-            'hits': shared.get('hits', 0),
-            'false_alarms': shared.get('false_alarms', 0),
-            'misses': shared.get('misses', 0),
-            'correct_rejections': shared.get('correct_rejections', 0)
-        }
-        results.append(trial_results)
 
+    
+
+            plt.show(block=True)
+
+            # Collect results
+            trial_results = {
+                'hits': shared.get('hits', 0),
+                'false_alarms': shared.get('false_alarms', 0),
+                'misses': shared.get('misses', 0),
+                'correct_rejections': shared.get('correct_rejections', 0)
+            }
+            results.append(trial_results)
     # Save results to a CSV file
     output_filename = f"results_{participant_number}_{session_number}_{experience_level}_{'exp' if feedback else 'ctrl'}.csv"
     with open(output_filename, 'w', newline='') as csvfile:
