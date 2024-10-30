@@ -8,6 +8,7 @@ import csv
 import random
 from slides import display_slides
 from ica_plot import custome_ica_plot
+from custome_plot_raw import custome_plot_raw
 from config import ICA_remove_inds
 import matplotlib
 matplotlib.use('tkagg')
@@ -95,22 +96,24 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
                 'done': False,
                 'previous_bads': set()
             }
+
             def on_pick(event):
                 artist = event.artist
                 if isinstance(artist, plt.Text):
                     ch_name = artist.get_text()
                     ch_names = trial_data.info['ch_names']
                     if ch_name in ch_names:
-                        if ch_name in trial_data.info['bads']:
-                            # Remove from bads
-                            shared['selected_channels'].remove(ch_name)
-                            trial_data.info['bads'].remove(ch_name)
-                            message = f"Unmarked {ch_name} as bad."
-                            color = 'green' if ch_name not in bad_channels_in_display else 'red'
+                        if ch_name in shared['selected_channels']:
+                            if deselect:
+                                shared['selected_channels'].remove(ch_name)
+                                message = f"Unmarked {ch_name} as bad."
+                                color = 'green' if ch_name not in bad_channels_in_display else 'red'
+                            else:
+                                message = "Deselection OFF: Only the first try is registered."
+                                color = 'red'
                         else:
                             # Add to bads
                             shared['selected_channels'].add(ch_name)
-                            trial_data.info['bads'].append(ch_name)
                             message = f"Marked {ch_name} as bad."
                             color = 'green' if ch_name in bad_channels_in_display else 'red'
                         # Provide immediate feedback
@@ -250,11 +253,20 @@ def on_submit():
     feedback = feedback_var.get()
     show_instruc = show_instruc_var.get()
     deselect = deselect_var.get()
+    mode_ica = (mode_var.get() == "ICA")
 
     print("Feedback Enabled:", feedback)
     print("Show Instructions:", show_instruc)
     print("Deselect Enabled:", deselect)
+    print("Mode ICA:", mode_ica)
 
+
+    if not participant_number.isdigit():
+        messagebox.showerror("Invalid Input", "Participant number must be a number.")
+        return
+    if not session_number.isdigit():
+        messagebox.showerror("Invalid Input", "Session number must be a number.")
+        return
     if not experience_level.isdigit() or not (1 <= int(experience_level) <= 4):
         messagebox.showerror("Invalid Input", "Experience level must be a number between 1 and 4.")
         return
@@ -267,7 +279,7 @@ def on_submit():
             display_slides(slide_folder, master=window)
     window.destroy()
 
-    run_experiment(participant_number, experience_level, session_number, feedback=feedback, deselect = deselect)
+    run_experiment(participant_number, experience_level, session_number, feedback=feedback, deselect = deselect, mode_ica = mode_ica)
 
 
 if __name__ == "__main__":
@@ -289,6 +301,12 @@ if __name__ == "__main__":
     deselect_var = tk.BooleanVar(value = False) # Unchecked by default
     deselect_checkbox = tk.Checkbutton(window, text="Enable Deselect", variable=deselect_var)
     deselect_checkbox.grid(row=5, column=1, columnspan=2, sticky="w")
+
+    mode_var = tk.StringVar(value="ICA")  # Default selection is "ICA"
+    radio_ica = tk.Radiobutton(window, text="ICA", variable=mode_var, value="ICA")
+    radio_ica.grid(row=3, column=0, sticky="w")
+    radio_eeg_meg = tk.Radiobutton(window, text="EEG/MEG", variable=mode_var, value="EEG/MEG")
+    radio_eeg_meg.grid(row=4, column=0, sticky="w")
 
     submit_button = tk.Button(window, text="Submit", command=on_submit)
     submit_button.grid(row=6, column=0, columnspan=2)

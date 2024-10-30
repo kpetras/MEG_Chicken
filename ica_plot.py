@@ -214,11 +214,7 @@ def custome_ica_plot(
             comp_title = ica._ica_names[ii]
             if len(set(ica.get_channel_types())) > 1:
                 comp_title += f" ({ch_type})"
-        ##########
-            title_text = ax.set_title(comp_title, fontsize=12, **kwargs)
-            title_text.set_picker(True)
-            subplot_titles.append(title_text)
-        #####################
+            subplot_titles.append(ax.set_title(comp_title, fontsize=12, **kwargs))
             if merge_channels:
                 data_, names_ = _merge_ch_data(data_, ch_type, copy.copy(names))
             # ↓↓↓ NOTE: we intentionally use the default norm=False here, so that
