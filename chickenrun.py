@@ -52,7 +52,7 @@ def display_feedback(fig, message, color='black'):
     )
     fig.canvas.draw_idle()
 
-def run_experiment(participant_number, experience_level, session_number, feedback=True, n_trials=10, mode_ica=True):
+def run_experiment(participant_number, experience_level, session_number, feedback=True, n_trials=10, mode_ica=True, deselect = False):
     """
     Runs the EEG/MEG data classification experiment.
 
@@ -61,10 +61,6 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
         n_trials (ind): Total number of trials.
         mode_ica (bool): Whether to include ICA functionality.
     """
-    # Display slides (if any)
-    # slide_folder = 'slides'
-    # if os.path.exists(slide_folder):
-    #     display_slides(slide_folder)
 
     if not mode_ica:
         data_path = os.path.join('data', 'trial_data')
@@ -99,17 +95,6 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
                 'done': False,
                 'previous_bads': set()
             }
-            # def display_feedback(fig, message, color='black'):
-            #     # Remove previous feedback text
-            #     if hasattr(display_feedback, 'text'):
-            #         display_feedback.text.remove()
-            #     # Add new feedback text
-            #     display_feedback.text = fig.mne.ax_main.text(
-            #         0.5, 1.01, message, transform=fig.mne.ax_main.transAxes,
-            #         ha='center', va='bottom', color=color, fontsize=12
-            #     )
-            #     fig.canvas.draw_idle()
-
             def on_pick(event):
                 artist = event.artist
                 if isinstance(artist, plt.Text):
@@ -129,7 +114,8 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
                             message = f"Marked {ch_name} as bad."
                             color = 'green' if ch_name in bad_channels_in_display else 'red'
                         # Provide immediate feedback
-                        display_feedback(fig, message, color)
+                        if feedback:
+                            display_feedback(fig, message, color)
                         
             def on_key(event):
                 if event.key == 'tab':
@@ -181,7 +167,6 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
             results.append(trial_results)
 #######################################################
         else: 
-            # chs_type = 'eeg' # ['mag', 'grad', 'eeg']
             file_path = os.path.join('data', 'ica' ,trial_file)
             ica = mne.preprocessing.read_ica(file_path)
             raw_file_name = subj + '_'+ ses +'_'+ run + '_raw.fif'
@@ -200,7 +185,7 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
             # Show the plot and start the event loop
             n_components = 50 # number of components per page
             # fig = ica.plot_components(nrows = 5, ncols = 10, inst = raw_preprocessed)
-            fig = custome_ica_plot(ica, ICA_remove_inds_list, nrows = 5, ncols = 10, inst = raw_preprocessed)
+            fig = custome_ica_plot(ica, ICA_remove_inds_list, feedback, deselect, nrows = 5, ncols = 10, inst = raw_preprocessed)
             def on_key(event):
                 if event.key == 'tab':
                     # Finish the trial
@@ -256,39 +241,55 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
                 'Correct Rejections': trial_result['correct_rejections']
             })
     plt.close('all')  # Ensure all matplotlib windows are closed.
-    root.quit()  # This will ensure the tkinter event loop stops.
     print('Experiment completed. Results saved.')
 
 def on_submit():
     participant_number = participant_number_entry.get()
     experience_level = experience_level_entry.get()
     session_number = session_number_entry.get()
+    feedback = feedback_var.get()
+    show_instruc = show_instruc_var.get()
+    deselect = deselect_var.get()
+
+    print("Feedback Enabled:", feedback)
+    print("Show Instructions:", show_instruc)
+    print("Deselect Enabled:", deselect)
 
     if not experience_level.isdigit() or not (1 <= int(experience_level) <= 4):
         messagebox.showerror("Invalid Input", "Experience level must be a number between 1 and 4.")
         return
+    
+    if show_instruc: 
+        show_instructions()
+        # Display slides (if any)
+        slide_folder = 'slides'
+        if os.path.exists(slide_folder):
+            display_slides(slide_folder, master=window)
     window.destroy()
-    show_instructions()
 
-    run_experiment(participant_number, experience_level, session_number, feedback=feedback)
+    run_experiment(participant_number, experience_level, session_number, feedback=feedback, deselect = deselect)
+
 
 if __name__ == "__main__":
-    # Ask the user to select the group type
-    root = tk.Tk()
-    root.withdraw()
-    group_choice = messagebox.askquestion(
-        "Group Selection",
-        "Is this the experimental group? Click 'Yes' for Experimental, 'No' for Control."
-    )
-    if group_choice == 'yes':
-        feedback = True
-    else:
-        feedback = False
     window = tk.Tk()
     window.title("Participant Information")
     participant_number_entry = create_label_entry(window, "Participant Number:", 0)
-    experience_level_entry = create_label_entry(window, "Experience Level (1-4, from very experienced to fully naïve):", 1)
+    experience_level_entry = create_label_entry(window, "Experience Level \n (1-4, from very experienced to fully naïve):", 1)
     session_number_entry = create_label_entry(window, "Session Number:", 2)
+
+        # Checkbox to enable or disable feedback
+    feedback_var = tk.BooleanVar(value=False) # Unchecked by default
+    feedback_checkbox = tk.Checkbutton(window, text="Enable Immediate Feedback", variable=feedback_var)
+    feedback_checkbox.grid(row=3, column=1, columnspan=2, sticky="w")
+
+    show_instruc_var = tk.BooleanVar(value=False) # Unchecked by default
+    instruc_checkbox = tk.Checkbutton(window, text="Show Instruction", variable=show_instruc_var)
+    instruc_checkbox.grid(row=4, column=1, columnspan=2, sticky="w")
+
+    deselect_var = tk.BooleanVar(value = False) # Unchecked by default
+    deselect_checkbox = tk.Checkbutton(window, text="Enable Deselect", variable=deselect_var)
+    deselect_checkbox.grid(row=5, column=1, columnspan=2, sticky="w")
+
     submit_button = tk.Button(window, text="Submit", command=on_submit)
-    submit_button.grid(row=3, column=0, columnspan=2)
+    submit_button.grid(row=6, column=0, columnspan=2)
     window.mainloop()

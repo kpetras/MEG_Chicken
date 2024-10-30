@@ -23,6 +23,8 @@ _EXTRAPOLATE_DEFAULT = "auto"
 def custome_ica_plot(
     ica,
     ICA_remove_inds_list,
+    feedback = False,
+    deselect =  False,
     picks=None,
     ch_type=None,
     *,
@@ -275,59 +277,65 @@ def custome_ica_plot(
                 ic = int(label.split(" ")[0][-3:])
                 # add or remove IC from exclude depending on current state
                 if ic in ica.exclude:
-                    ica.exclude.remove(ic)
-                    title_pressed.set_color("k")
-                    message = f"Unmarked component {ic} as bad."
-                    color = 'green' if ic not in ICA_remove_inds_list else 'red'
+                    if deselect:
+                        ica.exclude.remove(ic)
+                        title_pressed.set_color("k")
+                        message = f"Unmarked component {ic} as bad."
+                        color = 'green' if ic not in ICA_remove_inds_list else 'red'
+                    else:
+                        message = None
+                        color = None
                 else:
                     ica.exclude.append(ic)
                     title_pressed.set_color("gray")
                     message = f"Marked component {ic} as bad."
                     color = 'green' if ic in ICA_remove_inds_list else 'red'
-                if hasattr(fig, '_feedback_text'):
-                    fig._feedback_text.remove()
-                # Add new feedback text
-                fig._feedback_text = fig.text(
-                    0.5, 0.95, message, ha='center', va='center', color=color, fontsize=14
-                )
+                if feedback:
+                    if hasattr(fig, '_feedback_text'):
+                        fig._feedback_text.remove()
+                    # Add new feedback text
+                    fig._feedback_text = fig.text(
+                        0.5, 0.95, message, ha='center', va='center', color=color, fontsize=14
+                    )
                 fig.canvas.draw()
 
         fig.canvas.mpl_connect("button_press_event", onclick_title)
 
         # add plot_properties interactivity only if inst was passed
-        # if isinstance(inst, BaseRaw | BaseEpochs):
-        #     topomap_args = dict(
-        #         sensors=sensors,
-        #         contours=contours,
-        #         outlines=outlines,
-        #         sphere=sphere,
-        #         image_interp=image_interp,
-        #         extrapolate=extrapolate,
-        #         border=border,
-        #         res=res,
-        #         cmap=cmap[0],
-        #         vmin=vlim[0],
-        #         vmax=vlim[1],
-        #     )
+        #if isinstance(inst, BaseRaw | BaseEpochs):
+        if isinstance(inst,(BaseRaw, BaseEpochs)):
+            topomap_args = dict(
+                sensors=sensors,
+                contours=contours,
+                outlines=outlines,
+                sphere=sphere,
+                image_interp=image_interp,
+                extrapolate=extrapolate,
+                border=border,
+                res=res,
+                cmap=cmap[0],
+                vmin=vlim[0],
+                vmax=vlim[1],
+            )
 
-        #     def onclick_topo(event, ica=ica, inst=inst):
-        #         # check which component to plot
-        #         if event.inaxes is not None:
-        #             label = event.inaxes.get_label()
-        #             if label.startswith("ICA"):
-        #                 ic = int(label.split(" ")[0][-3:])
-        #                 ica.plot_properties(
-        #                     inst,
-        #                     picks=ic,
-        #                     show=True,
-        #                     plot_std=plot_std,
-        #                     topomap_args=topomap_args,
-        #                     image_args=image_args,
-        #                     psd_args=psd_args,
-        #                     reject=reject,
-        #                 )
+            def onclick_topo(event, ica=ica, inst=inst):
+                # check which component to plot
+                if event.inaxes is not None:
+                    label = event.inaxes.get_label()
+                    if label.startswith("ICA"):
+                        ic = int(label.split(" ")[0][-3:])
+                        ica.plot_properties(
+                            inst,
+                            picks=ic,
+                            show=True,
+                            plot_std=plot_std,
+                            topomap_args=topomap_args,
+                            image_args=image_args,
+                            psd_args=psd_args,
+                            reject=reject,
+                        )
 
-        #     fig.canvas.mpl_connect("button_press_event", onclick_topo)
+            fig.canvas.mpl_connect("button_press_event", onclick_topo)
         figs.append(fig)
 
     plt_show(show)
