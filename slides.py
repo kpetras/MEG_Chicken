@@ -4,6 +4,7 @@ import os
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
+
 def display_slides(slide_folder, master=None):
     """
     Displays slides in a separate, modal-like Tkinter window, blocking further code execution until closed.

@@ -35,7 +35,7 @@ def load_and_preprocess_data(raw_filepath, l_freq=0.1, h_freq=80, notch_freq=50)
     # raw.preprocessing.maxwell_filter()
     return raw
 
-def fit_and_save_ica(raw, ica_save_path, n_components=50, method='fastica', random_state=42):
+def fit_and_save_ica(raw, ica_save_path, n_components=50, method='fastica', random_state=42, chs_type='eeg'):
     """
     Fits ICA to the raw data and saves the ICA object to a file.
 
@@ -47,7 +47,7 @@ def fit_and_save_ica(raw, ica_save_path, n_components=50, method='fastica', rand
         random_state (int): Random state for ICA reproducibility.
     """
     ica = mne.preprocessing.ICA(n_components=n_components, method=method, random_state=random_state)
-    ica.fit(raw)
+    ica.fit(raw, picks = chs_type)
 
     # Ensure the save directory exists
     os.makedirs(os.path.dirname(ica_save_path), exist_ok=True)
