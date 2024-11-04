@@ -125,8 +125,12 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
                     self.setCentralWidget(container)
                     
                 def write(self, message):
-                    # Append new message to text area
-                    self.text_area.append(message)
+                    # Clear previous text and display only the latest message
+                    self.text_area.clear()
+                    self.text_area.setPlainText(message.strip()) 
+
+                def flush(self):
+                    pass  # Necessary for compatibility with sys.stdout redirection
 
             # Create the output window
             output_window = OutputWindow()
@@ -138,29 +142,33 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
                     self.output_widget = output_widget
                 
                 def write(self, message):
-                    self.output_widget.write(message)
+                    # Display only the latest print message
+                    if message.strip():  # Avoids displaying empty messages
+                        self.output_widget.write(message)
                 
                 def flush(self):
-                    pass
+                    self.output_widget.flush()
 
             # Redirect sys.stdout to the output window
             sys.stdout = PrintRedirector(output_window)
 
-            # Keep track of previous bad channels
-            prev_bads = fig.mne.info['bads'].copy()
-            prev_bads = [str(ch) for ch in fig.mne.info['bads']]
-
             # Define the function to check for changes
             def check_bads():
-                curr_bads = fig.mne.info['bads']
-                curr_bads = [str(ch) for ch in fig.mne.info['bads']]
-
-                if curr_bads != check_bads.prev_bads:
-                    print(f'Selected bad channels: {curr_bads}')
-                    check_bads.prev_bads = curr_bads.copy()
-
-            check_bads.prev_bads = prev_bads
-
+                curr_bads = set(str(ch) for ch in fig.mne.info['bads'])
+                new_bad = curr_bads.symmetric_difference(shared['selected_channels'])
+                if new_bad:
+                    new_bad = new_bad.pop()
+                    if new_bad in shared['selected_channels']:
+                        if deselect:
+                            shared['selected_channels'].remove(new_bad)
+                            correct = 'Correct' if new_bad not in bad_channels_in_display else 'Wrong'
+                            print(f"{correct}! Unmarked {new_bad} as bad.")
+                        else:
+                            print("Deselection OFF: Only the first try is registered.")
+                    else:
+                            shared['selected_channels'].add(new_bad)
+                            correct = 'Correct' if new_bad in bad_channels_in_display else 'Wrong'
+                            print(f"{correct}! Marked {new_bad} as bad.")                    
             # Create a QTimer to check periodically
             timer = QTimer()
             timer.timeout.connect(check_bads)
@@ -180,8 +188,8 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
                 'correct_rejections': shared.get('correct_rejections', 0)
             }
             results.append(trial_results)
-            # Override the browser's closeEvent to call on_browser_close
-            FloatingPointError.closeEvent = on_browser_close
+            # End the loop when event close
+            fig.closeEvent = on_browser_close
 
             # Show the browser
             fig.show()
@@ -192,8 +200,8 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
         else: 
             file_path = os.path.join('data', 'ica' ,trial_file)
             ica = mne.preprocessing.read_ica(file_path)
-            raw_file_name = subj + '_'+ ses +'_'+ run + '_raw.fif'
-            raw_file_path = os.path.join('data', 'raw',raw_file_name)
+            raw_file_name = subj + '_'+ ses +'_'+ run + '_preprocessed_raw.fif'
+            raw_file_path = os.path.join('data', 'preprocessed',raw_file_name)
             raw_preprocessed = mne.io.read_raw_fif(raw_file_path, preload=True, allow_maxshield=True)
             
             shared = {

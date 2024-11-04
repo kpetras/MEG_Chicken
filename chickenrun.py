@@ -171,8 +171,8 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
         else: 
             file_path = os.path.join('data', 'ica' ,trial_file)
             ica = mne.preprocessing.read_ica(file_path)
-            raw_file_name = subj + '_'+ ses +'_'+ run + '_raw.fif'
-            raw_file_path = os.path.join('data', 'raw',raw_file_name)
+            raw_file_name = subj + '_'+ ses +'_'+ run + '_preprocessed_raw.fif'
+            raw_file_path = os.path.join('data', 'preprocessed',raw_file_name)
             raw_preprocessed = mne.io.read_raw_fif(raw_file_path, preload=True, allow_maxshield=True)
             
             shared = {
