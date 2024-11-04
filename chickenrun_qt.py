@@ -5,15 +5,15 @@ import tkinter as tk
 from tkinter import messagebox
 import pickle
 import csv
+import sys
 import random
 from slides import display_slides
 from ica_plot import custome_ica_plot
 from config import ICA_remove_inds
-import matplotlib
-mne.viz.set_browser_backend('matplotlib')
-matplotlib.use('tkagg')
 import matplotlib.pyplot as plt
-# ['gtk3agg', 'gtk3cairo', 'gtk4agg', 'gtk4cairo', 'macosx', 'nbagg', 'notebook', 'qtagg', 'qtcairo', 'qt5agg', 'qt5cairo', 'tkagg', 'tkcairo', 'webagg', 'wx', 'wxagg', 'wxcairo', 'agg', 'cairo', 'pdf', 'pgf', 'ps', 'svg', 'template', 'inline']
+from PyQt5.QtWidgets import QApplication, QMainWindow, QTextEdit, QVBoxLayout, QWidget
+from PyQt5.QtCore import QTimer
+mne.viz.set_browser_backend('qt')
 def show_instructions():
     instructions1 = (
         "Welcome to this EEG and MEG data classification experiment! "
@@ -96,68 +96,81 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
                 'previous_bads': set()
             }
 
-            def on_pick(event):
-                artist = event.artist
-                if isinstance(artist, plt.Text):
-                    ch_name = artist.get_text()
-                    ch_names = trial_data.info['ch_names']
-                    if ch_name in ch_names:
-                        if ch_name in shared['selected_channels']:
-                            if deselect:
-                                shared['selected_channels'].remove(ch_name)
-                                message = f"Unmarked {ch_name} as bad."
-                                color = 'green' if ch_name not in bad_channels_in_display else 'red'
-                            else:
-                                message = "Deselection OFF: Only the first try is registered."
-                                color = 'red'
-                        else:
-                            # Add to bads
-                            shared['selected_channels'].add(ch_name)
-                            message = f"Marked {ch_name} as bad."
-                            color = 'green' if ch_name in bad_channels_in_display else 'red'
-                        # Provide immediate feedback
-                        if feedback:
-                            display_feedback(fig, message, color)
-                        
-            def on_key(event):
-                if event.key == 'tab':
-                    # Finish the trial
-                    fig.canvas.mpl_disconnect(cid_pick)
-                    fig.canvas.mpl_disconnect(cid_key)
-                    plt.close(fig)
-
-                    # Evaluate results
-                    selected = shared['selected_channels']
-                    hits = len(selected & set(bad_channels_in_display))
-                    false_alarms = len(selected - set(bad_channels_in_display))
-                    misses = len(set(bad_channels_in_display) - selected)
-                    correct_rejections = n_channels - len(selected | set(bad_channels_in_display))
-                    shared['hits'] = hits
-                    shared['false_alarms'] = false_alarms
-                    shared['misses'] = misses
-                    shared['correct_rejections'] = correct_rejections
-                    # Add feedback if needed
-                    if feedback:
-                        messagebox.showinfo(
-                            "Feedback",
-                            f"Hits: {hits}\nFalse Alarms: {false_alarms}\nMisses: {misses}\nCorrect Rejections: {correct_rejections}"
-                        )
-
-                    # Proceed to next trial
-                    plt.close('all')
-
             fig = trial_data.plot(
                 n_channels=n_channels,
                 duration=2,
                 block=False
             )
+            # Acess the underlying Qt application
+            app = QApplication.instance()
+            if app is None:
+                app = QApplication([])
 
-            # Connect event handlers
-            cid_pick = fig.canvas.mpl_connect('pick_event', on_pick)
-            cid_key = fig.canvas.mpl_connect('key_press_event', on_key)
+            # Create a separate window to display print outputs
+            class OutputWindow(QMainWindow):
+                def __init__(self):
+                    super().__init__()
+                    self.setWindowTitle("Print Output")
+                    self.setGeometry(700, 100, 400, 300)
+                    
+                    # Set up text area
+                    self.text_area = QTextEdit(self)
+                    self.text_area.setReadOnly(True)
+                    
+                    # Layout
+                    layout = QVBoxLayout()
+                    layout.addWidget(self.text_area)
+                    container = QWidget()
+                    container.setLayout(layout)
+                    self.setCentralWidget(container)
+                    
+                def write(self, message):
+                    # Append new message to text area
+                    self.text_area.append(message)
 
-            # Show the plot and start the event loop
-            plt.show(block=True)
+            # Create the output window
+            output_window = OutputWindow()
+            output_window.show()
+
+            # Redirect print statements to the output window
+            class PrintRedirector:
+                def __init__(self, output_widget):
+                    self.output_widget = output_widget
+                
+                def write(self, message):
+                    self.output_widget.write(message)
+                
+                def flush(self):
+                    pass
+
+            # Redirect sys.stdout to the output window
+            sys.stdout = PrintRedirector(output_window)
+
+            # Keep track of previous bad channels
+            prev_bads = fig.mne.info['bads'].copy()
+            prev_bads = [str(ch) for ch in fig.mne.info['bads']]
+
+            # Define the function to check for changes
+            def check_bads():
+                curr_bads = fig.mne.info['bads']
+                curr_bads = [str(ch) for ch in fig.mne.info['bads']]
+
+                if curr_bads != check_bads.prev_bads:
+                    print(f'Selected bad channels: {curr_bads}')
+                    check_bads.prev_bads = curr_bads.copy()
+
+            check_bads.prev_bads = prev_bads
+
+            # Create a QTimer to check periodically
+            timer = QTimer()
+            timer.timeout.connect(check_bads)
+            timer.start(500)  # Check every 500 milliseconds
+
+            # Define a function to handle browser close event
+            def on_browser_close(event):
+                timer.stop()  # Stop the timer
+                app.quit()    # Quit the application
+                event.accept()  # Accept the close event
 
             # Collect results
             trial_results = {
@@ -167,6 +180,14 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
                 'correct_rejections': shared.get('correct_rejections', 0)
             }
             results.append(trial_results)
+            # Override the browser's closeEvent to call on_browser_close
+            FloatingPointError.closeEvent = on_browser_close
+
+            # Show the browser
+            fig.show()
+
+            # Start the Qt event loop
+            app.exec_()
 #######################################################
         else: 
             file_path = os.path.join('data', 'ica' ,trial_file)
