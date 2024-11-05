@@ -52,7 +52,7 @@ def display_feedback(fig, message, color='black'):
     )
     fig.canvas.draw_idle()
 
-def run_experiment(participant_number, experience_level, session_number, feedback=True, n_trials=10, mode_ica=True, deselect = False):
+def run_experiment(participant_number, experience_level, session_number, feedback=True, n_trials=10, mode_ica=True, deselect = False, ch_type = 'eeg'):
     """
     Runs the EEG/MEG data classification experiment.
 
@@ -82,7 +82,7 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
             # load ica information
             subj, ses, run = trial_file.split('_')[:3]
             run_ind = run + '.fif'
-            ICA_remove_inds_list = ICA_remove_inds[subj][run_ind]
+            ICA_remove_inds_list = ICA_remove_inds[subj][run_ind][ch_type]
 
         if not mode_ica:
             # Shared data

@@ -52,7 +52,7 @@ def display_feedback(fig, message, color='black'):
     )
     fig.canvas.draw_idle()
 
-def run_experiment(participant_number, experience_level, session_number, feedback=True, n_trials=10, mode_ica=True, deselect = False):
+def run_experiment(participant_number, experience_level, session_number, feedback=True, n_trials=10, mode_ica=True, deselect = False, ch_type = 'eeg'):
     """
     Runs the EEG/MEG data classification experiment.
 
@@ -82,7 +82,7 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
             # load ica information
             subj, ses, run = trial_file.split('_')[:3]
             run_ind = run + '.fif'
-            ICA_remove_inds_list = ICA_remove_inds[subj][run_ind]
+            ICA_remove_inds_list = ICA_remove_inds[subj][run_ind][ch_type]
 
         if not mode_ica:
             # Shared data
@@ -171,8 +171,8 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
         else: 
             file_path = os.path.join('data', 'ica' ,trial_file)
             ica = mne.preprocessing.read_ica(file_path)
-            raw_file_name = subj + '_'+ ses +'_'+ run + '_preprocessed_raw.fif'
-            raw_file_path = os.path.join('data', 'preprocessed',raw_file_name)
+            raw_file_name = subj + '_'+ ses +'_'+ run + '_raw.fif'
+            raw_file_path = os.path.join('data', 'raw',raw_file_name)
             raw_preprocessed = mne.io.read_raw_fif(raw_file_path, preload=True, allow_maxshield=True)
             
             shared = {
