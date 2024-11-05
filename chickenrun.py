@@ -171,8 +171,8 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
         else: 
             file_path = os.path.join('data', 'ica' ,trial_file)
             ica = mne.preprocessing.read_ica(file_path)
-            raw_file_name = subj + '_'+ ses +'_'+ run + '_raw.fif'
-            raw_file_path = os.path.join('data', 'raw',raw_file_name)
+            raw_file_name = subj + '_'+ ses +'_'+ run + '_preprocessed_raw.fif'
+            raw_file_path = os.path.join('data', 'preprocessed',raw_file_name)
             raw_preprocessed = mne.io.read_raw_fif(raw_file_path, preload=True, allow_maxshield=True)
             
             shared = {
@@ -188,36 +188,31 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
             n_components = 50 # number of components per page
             # fig = ica.plot_components(nrows = 5, ncols = 10, inst = raw_preprocessed)
             fig = custome_ica_plot(ica, ICA_remove_inds_list, feedback, deselect, nrows = 5, ncols = 10, inst = raw_preprocessed)
-            def on_key(event):
-                if event.key == 'tab':
-                    # Finish the trial
-                    fig.canvas.mpl_disconnect(cid_key)
-                    plt.close(fig)
+            def on_close(event):
+                # Finish the trial
+                fig.canvas.mpl_disconnect(cid_key)
+                plt.close(fig)
 
-                    # Evaluate results
-                    selected = set(ica.exclude)
-                    hits = len(selected & set(ICA_remove_inds_list))
-                    false_alarms = len(selected - set(ICA_remove_inds_list))
-                    misses = len(set(ICA_remove_inds_list) - selected)
-                    correct_rejections = n_components - len(selected | set(ICA_remove_inds_list))
-                    shared['hits'] = hits
-                    shared['false_alarms'] = false_alarms
-                    shared['misses'] = misses
-                    shared['correct_rejections'] = correct_rejections
-                    # Add feedback if needed
-                    if feedback:
-                        messagebox.showinfo(
-                            "Feedback",
-                            f"Hits: {hits}\nFalse Alarms: {false_alarms}\nMisses: {misses}\nCorrect Rejections: {correct_rejections}"
-                        )
+                # Evaluate results
+                selected = set(ica.exclude)
+                hits = len(selected & set(ICA_remove_inds_list))
+                false_alarms = len(selected - set(ICA_remove_inds_list))
+                misses = len(set(ICA_remove_inds_list) - selected)
+                correct_rejections = n_components - len(selected | set(ICA_remove_inds_list))
+                shared['hits'] = hits
+                shared['false_alarms'] = false_alarms
+                shared['misses'] = misses
+                shared['correct_rejections'] = correct_rejections
+                # Add feedback if needed
+                if feedback:
+                    messagebox.showinfo(
+                        "Feedback",
+                        f"Hits: {hits}\nFalse Alarms: {false_alarms}\nMisses: {misses}\nCorrect Rejections: {correct_rejections}"
+                    )
 
-                    # Proceed to next trial
-                    plt.close('all')
-            cid_key = fig.canvas.mpl_connect('key_press_event', on_key)
-
-
-    
-
+                # Proceed to next trial
+                plt.close('all')
+            cid_key = fig.canvas.mpl_connect('close_event', on_close)
             plt.show(block=True)
 
             # Collect results

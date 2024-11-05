@@ -50,7 +50,7 @@ def custome_ica_plot(
     title=None,
     nrows="auto",
     ncols="auto",
-    show=True,
+    show=False,
     image_args=None,
     psd_args=None,
     verbose=None,
