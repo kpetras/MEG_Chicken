@@ -9,7 +9,7 @@ import sys
 import random
 from slides import display_slides
 from ica_plot import custome_ica_plot
-from config import ICA_remove_inds
+import json
 import matplotlib
 matplotlib.use('TkAgg')
 print("Current backend:", matplotlib.get_backend())
@@ -83,8 +83,11 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
         else:
             # load ica information
             mne.viz.set_browser_backend('matplotlib')
+            with open('config.json', 'r') as file:
+                config_data = json.load(file)
             subj, ses, run = trial_file.split('_')[:3]
             run_ind = run + '.fif'
+            ICA_remove_inds = config_data.get("ICA_remove_inds", {})
             ICA_remove_inds_list = ICA_remove_inds[subj][run_ind][ch_type]
 
         if not mode_ica:

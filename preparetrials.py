@@ -1,13 +1,12 @@
 # preparetrials.py
-
+import json
 import os
 import random
 import pickle
 from HelperFuns import select_and_shuffle_channels
-from config import badC_EEG, badC_MEG
 import mne
 
-def prepare_trials(data_dir, output_dir, n_versions=5, trials_per_file=5):
+def prepare_trials(data_dir, output_dir, n_versions=1, trials_per_file=5):
     """
     Prepares trial data by selecting and shuffling channels, and saves them for experiments.
 
@@ -19,6 +18,10 @@ def prepare_trials(data_dir, output_dir, n_versions=5, trials_per_file=5):
     """
     os.makedirs(output_dir, exist_ok=True)
     data_files = [f for f in os.listdir(data_dir) if f.endswith('_preprocessed_raw.fif')]
+
+    # Load JSON data
+    with open('config.json', 'r') as file:
+        config_data = json.load(file)
 
     for version in range(n_versions):
         trial_num = 0
@@ -34,8 +37,10 @@ def prepare_trials(data_dir, output_dir, n_versions=5, trials_per_file=5):
             for channel_type in ['EEG', 'Mag', 'Grad']:
                 if channel_type == 'EEG':
                     # bad_channels = badC_EEG.get(subj, {}).get(ses, {}).get(run, [])
+                    badC_EEG = config_data.get("badC_EEG", {})
                     bad_channels = badC_EEG[subj][ses][run_ind]
                 else:
+                    badC_MEG = config_data.get("badC_MEG", {})
                     bad_channels = badC_MEG[subj][ses][run_ind]
                     if channel_type == 'Mag':
                         bad_channels = [ch for ch in bad_channels if ch.endswith('1')]
@@ -47,7 +52,6 @@ def prepare_trials(data_dir, output_dir, n_versions=5, trials_per_file=5):
                         raw_preprocessed, bad_channels, channel_type
                     )
                     
-                    # trial_data = raw_preprocessed.copy().pick_channels(channels_to_display)
                     trial_data = raw_preprocessed.copy().pick(channels_to_display)
                     # Pair the trial data with the bad channels
                     trial_pair = (trial_data, bad_chans_in_display)
