@@ -76,7 +76,7 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
         if not mode_ica:
             with open(os.path.join(data_path, trial_file), 'rb') as f:
                 trial_data, bad_channels_in_display = pickle.load(f)
-            print(f'Processing file: {trial_file} (Trial {count}/{n_trials})')
+            # print(f'Processing file: {trial_file} (Trial {count}/{n_trials})')
             n_channels = trial_data.info['nchan']
         else:
             # load ica information
@@ -125,12 +125,8 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
                     self.setCentralWidget(container)
                     
                 def write(self, message):
-                    # Clear previous text and display only the latest message
-                    self.text_area.clear()
-                    self.text_area.setPlainText(message.strip()) 
-
-                def flush(self):
-                    pass  # Necessary for compatibility with sys.stdout redirection
+                    # Append new message to text area
+                    self.text_area.append(message)
 
             # Create the output window
             output_window = OutputWindow()
@@ -142,33 +138,29 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
                     self.output_widget = output_widget
                 
                 def write(self, message):
-                    # Display only the latest print message
-                    if message.strip():  # Avoids displaying empty messages
-                        self.output_widget.write(message)
+                    self.output_widget.write(message)
                 
                 def flush(self):
-                    self.output_widget.flush()
+                    pass
 
             # Redirect sys.stdout to the output window
             sys.stdout = PrintRedirector(output_window)
 
+            # Keep track of previous bad channels
+            prev_bads = fig.mne.info['bads'].copy()
+            prev_bads = [str(ch) for ch in fig.mne.info['bads']]
+
             # Define the function to check for changes
             def check_bads():
-                curr_bads = set(str(ch) for ch in fig.mne.info['bads'])
-                new_bad = curr_bads.symmetric_difference(shared['selected_channels'])
-                if new_bad:
-                    new_bad = new_bad.pop()
-                    if new_bad in shared['selected_channels']:
-                        if deselect:
-                            shared['selected_channels'].remove(new_bad)
-                            correct = 'Correct' if new_bad not in bad_channels_in_display else 'Wrong'
-                            print(f"{correct}! Unmarked {new_bad} as bad.")
-                        else:
-                            print("Deselection OFF: Only the first try is registered.")
-                    else:
-                            shared['selected_channels'].add(new_bad)
-                            correct = 'Correct' if new_bad in bad_channels_in_display else 'Wrong'
-                            print(f"{correct}! Marked {new_bad} as bad.")                    
+                curr_bads = fig.mne.info['bads']
+                curr_bads = [str(ch) for ch in fig.mne.info['bads']]
+
+                if curr_bads != check_bads.prev_bads:
+                    print(f'Selected bad channels: {curr_bads}')
+                    check_bads.prev_bads = curr_bads.copy()
+
+            check_bads.prev_bads = prev_bads
+
             # Create a QTimer to check periodically
             timer = QTimer()
             timer.timeout.connect(check_bads)
@@ -177,19 +169,34 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
             # Define a function to handle browser close event
             def on_browser_close(event):
                 timer.stop()  # Stop the timer
+
+                    # Evaluate results
+                selected = shared['selected_channels']
+                hits = len(selected & set(bad_channels_in_display))
+                false_alarms = len(selected - set(bad_channels_in_display))
+                misses = len(set(bad_channels_in_display) - selected)
+                correct_rejections = n_channels - len(selected | set(bad_channels_in_display))
+                shared['hits'] = hits
+                shared['false_alarms'] = false_alarms
+                shared['misses'] = misses
+                shared['correct_rejections'] = correct_rejections
+                print(f'hits: {shared['hits']} \n 
+                      false alarms {shared['false_alarms']} \n 
+                      misses = {shared['misses']} \n 
+                      correct rejections = {shared['correct_rejections']} \n')
+                # Collect results
+                trial_results = {
+                    'hits': shared.get('hits', 0),
+                    'false_alarms': shared.get('false_alarms', 0),
+                    'misses': shared.get('misses', 0),
+                    'correct_rejections': shared.get('correct_rejections', 0)
+                }
+                results.append(trial_results)
                 app.quit()    # Quit the application
                 event.accept()  # Accept the close event
 
-            # Collect results
-            trial_results = {
-                'hits': shared.get('hits', 0),
-                'false_alarms': shared.get('false_alarms', 0),
-                'misses': shared.get('misses', 0),
-                'correct_rejections': shared.get('correct_rejections', 0)
-            }
-            results.append(trial_results)
-            # End the loop when event close
-            fig.closeEvent = on_browser_close
+            # Override the browser's closeEvent to call on_browser_close
+            FloatingPointError.closeEvent = on_browser_close
 
             # Show the browser
             fig.show()
@@ -200,8 +207,8 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
         else: 
             file_path = os.path.join('data', 'ica' ,trial_file)
             ica = mne.preprocessing.read_ica(file_path)
-            raw_file_name = subj + '_'+ ses +'_'+ run + '_preprocessed_raw.fif'
-            raw_file_path = os.path.join('data', 'preprocessed',raw_file_name)
+            raw_file_name = subj + '_'+ ses +'_'+ run + '_raw.fif'
+            raw_file_path = os.path.join('data', 'raw',raw_file_name)
             raw_preprocessed = mne.io.read_raw_fif(raw_file_path, preload=True, allow_maxshield=True)
             
             shared = {
