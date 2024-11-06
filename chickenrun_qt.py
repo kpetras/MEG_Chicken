@@ -6,16 +6,18 @@ from tkinter import messagebox
 import pickle
 import csv
 import sys
-import random
 from slides import display_slides
 from ica_plot import custome_ica_plot
+from HelperFuns import create_label_entry
 import json
 import matplotlib
 matplotlib.use('TkAgg')
-print("Current backend:", matplotlib.get_backend())
 import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import QApplication, QMainWindow, QTextEdit, QVBoxLayout, QWidget
 from PyQt5.QtCore import QTimer
+import contextlib
+import io
+
 def show_instructions():
     instructions1 = (
         "Welcome to this EEG and MEG data classification experiment! "
@@ -35,13 +37,6 @@ def show_instructions():
     messagebox.showinfo("Instructions - Page 1", instructions1)
     messagebox.showinfo("Instructions - Page 2", instructions2)
     messagebox.showinfo("Instructions - Page 3", instructions3)
-
-def create_label_entry(window, text, row):
-    label = tk.Label(window, text=text)
-    label.grid(row=row, column=0)
-    entry = tk.Entry(window)
-    entry.grid(row=row, column=1)
-    return entry
 
 def display_feedback(fig, message, color='black'):
     # Remove previous feedback text
@@ -68,6 +63,57 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
         data_path = os.path.join('data', 'trial_data')
         file_list =  [f for f in os.listdir(data_path) if not f.startswith('.')]
         file_paths = np.random.choice(file_list, n_trials, replace=False)
+
+        app = QApplication.instance()
+        if app is None:
+            app = QApplication([])
+
+        # Create a separate window to display print outputs
+        class OutputWindow(QMainWindow):
+            def __init__(self):
+                super().__init__()
+                self.setWindowTitle("Trial Feedback")
+                self.setGeometry(700, 100, 400, 300)
+                
+                # Set up text area
+                self.text_area = QTextEdit(self)
+                self.text_area.setReadOnly(True)
+                
+                # Layout
+                layout = QVBoxLayout()
+                layout.addWidget(self.text_area)
+                container = QWidget()
+                container.setLayout(layout)
+                self.setCentralWidget(container)
+                
+            def write(self, message):
+                # Clear previous text and display only the latest message
+                self.text_area.clear()
+                self.text_area.setPlainText(message.strip()) 
+
+            def flush(self):
+                pass  # Necessary for compatibility with sys.stdout redirection
+
+
+        # Create the output window
+        output_window = OutputWindow()
+        output_window.show()
+
+        # Redirect print statements to the output window
+        class PrintRedirector:
+            def __init__(self, output_widget):
+                self.output_widget = output_widget
+            
+            def write(self, message):
+                # Display only the latest print message
+                if message.strip():  # Avoids displaying empty messages
+                    self.output_widget.write(message)
+            
+            def flush(self):
+                self.output_widget.flush()
+
+        # Redirect sys.stdout to the output window
+        sys.stdout = PrintRedirector(output_window)
     else:
         data_path = os.path.join('data', 'ica')
         file_paths = [f for f in os.listdir(data_path) if f.endswith('_ica.fif')]
@@ -101,71 +147,31 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
                 'done': False,
                 'previous_bads': set()
             }
-
-            fig = trial_data.plot(
-                n_channels=n_channels,
-                duration=2,
-                block=False
-            )
-            # Acess the underlying Qt application
-            app = QApplication.instance()
-            if app is None:
-                app = QApplication([])
-
-            # Create a separate window to display print outputs
-            class OutputWindow(QMainWindow):
-                def __init__(self):
-                    super().__init__()
-                    self.setWindowTitle("Print Output")
-                    self.setGeometry(700, 100, 400, 300)
-                    
-                    # Set up text area
-                    self.text_area = QTextEdit(self)
-                    self.text_area.setReadOnly(True)
-                    
-                    # Layout
-                    layout = QVBoxLayout()
-                    layout.addWidget(self.text_area)
-                    container = QWidget()
-                    container.setLayout(layout)
-                    self.setCentralWidget(container)
-                    
-                def write(self, message):
-                    # Append new message to text area
-                    self.text_area.append(message)
-
-            # Create the output window
-            output_window = OutputWindow()
-            output_window.show()
-
-            # Redirect print statements to the output window
-            class PrintRedirector:
-                def __init__(self, output_widget):
-                    self.output_widget = output_widget
-                
-                def write(self, message):
-                    self.output_widget.write(message)
-                
-                def flush(self):
-                    pass
-
-            # Redirect sys.stdout to the output window
-            sys.stdout = PrintRedirector(output_window)
-
-            # Keep track of previous bad channels
-            prev_bads = fig.mne.info['bads'].copy()
-            prev_bads = [str(ch) for ch in fig.mne.info['bads']]
+            # Use contextlib to avoid unnecessary message when open the mne browser
+            with contextlib.redirect_stdout(io.StringIO()):
+                fig = trial_data.plot(
+                    n_channels=n_channels,
+                    duration=2,
+                    block=False
+                )
 
             # Define the function to check for changes
             def check_bads():
-                curr_bads = fig.mne.info['bads']
-                curr_bads = [str(ch) for ch in fig.mne.info['bads']]
-
-                if curr_bads != check_bads.prev_bads:
-                    print(f'Selected bad channels: {curr_bads}')
-                    check_bads.prev_bads = curr_bads.copy()
-
-            check_bads.prev_bads = prev_bads
+                curr_bads = set(str(ch) for ch in fig.mne.info['bads'])
+                new_bad = curr_bads.symmetric_difference(shared['selected_channels'])
+                if new_bad:
+                    new_bad = new_bad.pop()
+                    if new_bad in shared['selected_channels']:
+                        if deselect:
+                            shared['selected_channels'].remove(new_bad)
+                            correct = 'Correct' if new_bad not in bad_channels_in_display else 'Wrong'
+                            print(f"{correct}! Unmarked {new_bad} as bad.")
+                        else:
+                            print("Deselection OFF: Only the first try is registered.")
+                    else:
+                            shared['selected_channels'].add(new_bad)
+                            correct = 'Correct' if new_bad in bad_channels_in_display else 'Wrong'
+                            print(f"{correct}! Marked {new_bad} as bad.") 
 
             # Create a QTimer to check periodically
             timer = QTimer()
@@ -202,7 +208,7 @@ def run_experiment(participant_number, experience_level, session_number, feedbac
                 event.accept()  # Accept the close event
 
             # Override the browser's closeEvent to call on_browser_close
-            FloatingPointError.closeEvent = on_browser_close
+            fig.closeEvent = on_browser_close
 
             # Show the browser
             fig.show()
