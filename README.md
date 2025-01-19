@@ -7,6 +7,7 @@ This repository contains code and resources for an EEG and MEG artifact detectio
 ## Table of Contents
 
 - [Introduction](#introduction)
+- [Implicit learning: the chicken sexing problem](#background)
 - [Installation](#installation)
 - [Usage](#usage)
   - [Preprocessing](#preprocessing)
@@ -20,6 +21,12 @@ This repository contains code and resources for an EEG and MEG artifact detectio
 ## Introduction
 
 The detection of physiological and non-physiological artifacts in M/EEG data is notoriously subjective and relies on rigorous training. Here, we provide a simple tool, based on visualizations provided through MNE python, to train students to consistently detect different types of artifacts and real M/EEG data.
+
+## Implicit learning: chicken sexing problem
+
+Chicken sexers quickly and reliably determine the sex of day old chicks that do not have obvious distinguishing features . They do so often without explicit knowledge of the visual cues differentiating male from female chicks. Instead, their skill is developed through implicit procedural learning, facilitated by direct and immediate feedback during training.We here use a similar principle, direct and immediate feedback on each decision, to train researchers to quickly and reliably detect artifacts in MEG and EEG data.
+Ref: https://web-archive.southampton.ac.uk/cogprints.org/3255/1/chicken.pdf
+
 ## Installation
 
 ### Clone the Repository
