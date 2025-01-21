@@ -47,7 +47,7 @@ def select_and_shuffle_channels(raw, bad_channels, channel_type, total_channels=
 
     return selected_channels, selected_bad_channels
 
-def prepare_trials(data_dir, output_dir, n_versions=1, trials_per_file=5):
+def prepare_trials(data_dir, output_dir, n_versions=3, trials_per_file=5):
     """
     Prepares trial data by selecting and shuffling channels, and saves them for experiments.
 
@@ -113,7 +113,7 @@ def prepare_trials(data_dir, output_dir, n_versions=1, trials_per_file=5):
                         pickle.dump(trial_dict, f)
                     trial_num += 1
 
-def sample_trials(trial_dir, sample_file, n_samples=10):
+def sample_trials(trial_dir, sample_file, n_samples=50):
     """
     Randomly samples trials from the prepared trial data and saves them.
 

@@ -1,0 +1,17 @@
+# platform: osx-64
+os
+time
+random
+json
+numpy
+mne
+tkinter
+pickle
+csv
+matplotlib
+warnings
+scipy
+PIL
+playsound
+copy
+

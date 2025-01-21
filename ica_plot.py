@@ -1,3 +1,4 @@
+# ica_plot.py
 import mne
 import copy
 import matplotlib as plt
@@ -12,6 +13,7 @@ from mne.channels.layout import _merge_ch_data
 from mne.epochs import BaseEpochs
 from mne.io import BaseRaw
 
+from FeedbackWindow import FeedbackWindow
 
 
 # straight from defaults
@@ -54,6 +56,7 @@ def custome_ica_plot(
     image_args=None,
     psd_args=None,
     verbose=None,
+    master=None,
 ):
     """Project mixing matrix on interpolated sensor topography.
 
@@ -214,7 +217,9 @@ def custome_ica_plot(
             comp_title = ica._ica_names[ii]
             if len(set(ica.get_channel_types())) > 1:
                 comp_title += f" ({ch_type})"
+            
             subplot_titles.append(ax.set_title(comp_title, fontsize=12, **kwargs))
+            # # To make it pickable
             if merge_channels:
                 data_, names_ = _merge_ch_data(data_, ch_type, copy.copy(names))
             # ↓↓↓ NOTE: we intentionally use the default norm=False here, so that
@@ -269,30 +274,26 @@ def custome_ica_plot(
                     break
             # title was pressed -> identify the IC
             if title_pressed is not None:
-                label = title_pressed.get_text()
+                label = title_pressed.get_text() # e.g. "ICA000 (eeg)"
                 ic = int(label.split(" ")[0][-3:])
                 # add or remove IC from exclude depending on current state
                 if ic in ica.exclude:
                     if deselect:
                         ica.exclude.remove(ic)
                         title_pressed.set_color("k")
-                        message = f"Unmarked component {ic} as bad."
-                        color = 'green' if ic not in ICA_remove_inds_list else 'red'
+                        if feedback and master is not None:
+                            is_correct = (ic in ICA_remove_inds_list)
+                            FeedbackWindow(master, is_correct)
                     else:
-                        message = None
-                        color = None
+                        # if deselect is not allowed we still keep the ica in list
+                        pass
                 else:
                     ica.exclude.append(ic)
                     title_pressed.set_color("gray")
-                    message = f"Marked component {ic} as bad."
-                    color = 'green' if ic in ICA_remove_inds_list else 'red'
-                if feedback:
-                    if hasattr(fig, '_feedback_text'):
-                        fig._feedback_text.remove()
-                    # Add new feedback text
-                    fig._feedback_text = fig.text(
-                        0.5, 0.95, message, ha='center', va='center', color=color, fontsize=14
-                    )
+                    if feedback and master is not None:
+                        is_correct = (ic in ICA_remove_inds_list)
+                        FeedbackWindow(master, is_correct)
+
                 fig.canvas.draw()
 
         fig.canvas.mpl_connect("button_press_event", onclick_title)
