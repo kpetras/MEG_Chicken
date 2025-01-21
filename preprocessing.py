@@ -17,7 +17,8 @@ def load_and_preprocess_data(raw_filepath, l_freq=0.1, h_freq=80, notch_freq=50)
         mne.io.Raw: Preprocessed raw data.
     """
     # Load raw data
-    raw = mne.io.read_raw_fif(raw_filepath, preload=True, allow_maxshield=True)
+    # raw = mne.io.read_raw_fif(raw_filepath, preload=True, allow_maxshield=True)
+    raw = mne.io.read_raw(raw_filepath, preload=True, allow_maxshield=True)
 
     # Apply notch filter to remove power line noise and harmonics
     freqs = [notch_freq * i for i in range(1, 5)]  # [50, 100, 150, 200]

@@ -267,7 +267,8 @@ class MEG_Chicken:
                 if not os.path.exists(raw_file_path):
                     print(f"Cannot find {raw_file_path}. Skipping trial.")
                     continue
-                raw_preprocessed = mne.io.read_raw_fif(raw_file_path, preload=True, allow_maxshield=True)
+                # raw_preprocessed = mne.io.read_raw_fif(raw_file_path, preload=True, allow_maxshield=True)
+                raw_preprocessed = mne.io.read_raw(raw_file_path, preload=True, allow_maxshield=True)
 
                 # Answers
                 run_ind = run + '.fif'
@@ -276,7 +277,6 @@ class MEG_Chicken:
                     bad_components = ica_remove[subj][run_ind][ch_type]
 
                 print(bad_components)
-                selected_components = set()
 
                 fig = custome_ica_plot(
                     ica,

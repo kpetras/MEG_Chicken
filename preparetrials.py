@@ -70,8 +70,9 @@ def prepare_trials(data_dir, output_dir, n_versions=3, trials_per_file=5):
             file_path = os.path.join(data_dir, data_file)
             subj, ses, run = data_file.split('_')[:3]
             run_ind = run + '.fif'
-            raw_preprocessed = mne.io.read_raw_fif(file_path, preload=True, allow_maxshield=True)
-
+            # raw_preprocessed = mne.io.read_raw_fif(file_path, preload=True, allow_maxshield=True)
+            raw_preprocessed = mne.io.read_raw(file_path, preload=True, allow_maxshield=True)
+            
             for channel_type in ['EEG', 'Mag', 'Grad']:
                 if channel_type == 'EEG':
                     badC_EEG = config_data.get("badC_EEG", {})
