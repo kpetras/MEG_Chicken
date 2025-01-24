@@ -56,11 +56,16 @@ For both tasks:
 ```bash
 python preproc.py MEEG ICA TRIAL
 ```
+
 Options:
 `--l-freq`, `--h-freq`, `--notch-freq`: set filter cutoffs.
+
 `--n-components`: for ICA.
+
 `--n-versions`, `--trials-per-file`: how many trial versions to create.
+
 `--do-trial`: explicitly triggers trial generation.
+
 Example:
 ```bash
 python preproc.py MEEG ICA --do-trial --n-components 25 --n-versions 2 --trials-per-file 3
