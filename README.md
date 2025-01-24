@@ -41,29 +41,31 @@ cd MEG_Chicken
 
 ## Usage
 
-### Preprocessing
-The preprocessing.py script handles loading and preprocessing of raw EEG and MEG data, including applying filters and fitting ICA models.
+### Preprocessing with preproc.py
+The preproc.py script handles loading and preprocessing of raw EEG and MEG data, including applying filters, generating trial files and fitting ICA models.
 
-### Running Preprocessing
-
-- Define the path to the raw data in `preprocessing.py`.
-- List the files to preprocess.
-- Run the preprocessing script:
+To generate or regenerate trial data (pickled) on raw data:
 ```bash
-python preprocessing.py
+python preproc.py MEEG TRIAL
+```
+To Run ICA on raw data:
+```bash
+python preproc.py MEEG ICA
+```
+For both tasks:
+```bash
+python preproc.py MEEG ICA TRIAL
+```
+Options:
+`--l-freq`, `--h-freq`, `--notch-freq`: set filter cutoffs.
+`--n-components`: for ICA.
+`--n-versions`, `--trials-per-file`: how many trial versions to create.
+`--do-trial`: explicitly triggers trial generation.
+Example:
+```bash
+python preproc.py MEEG ICA --do-trial --n-components 25 --n-versions 2 --trials-per-file 3
 ```
 
-### Preparing Trials
-The prepare_trials.py script prepares trial data for the experiment by selecting and shuffling channels, and storing the prepared data.
-
-### Running Trial Preparation
-
-- Ensure the preprocessed data is available in the specified directory.
-- Run the trial preparation script:
-
-```bash
-python prepare_trials.py
-```
 ### Running the training
 ```bash
 python chickenrun.py
