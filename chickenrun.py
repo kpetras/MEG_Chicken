@@ -1,6 +1,5 @@
 import os
 import time
-import random
 import json
 import numpy as np
 import mne
@@ -11,9 +10,10 @@ import csv
 import matplotlib
 import matplotlib.pyplot as plt
 import warnings
+import config
+import run_funcs
 from ica_plot import custome_ica_plot
-from FeedbackWindow import FeedbackWindow, TrialResultWindow
-from scipy.stats import norm
+from FeedbackWindow import FeedbackWindow, TrialResultWindow, TrialEndWindow
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 # ============ MNE Matplotlib settings ============
@@ -32,36 +32,6 @@ except ImportError:
     def display_slides(*args, **kwargs):
         pass
 
-
-def compute_dprime(hits, false_alarms, misses, correct_rejections):
-    """
-    Compute d-prime based on hits/misses/false alarms/correct rejections.
-    
-    D-prime = Z(HR) - Z(FAR)
-    Where:
-    HR = hits / (hits + misses)
-    FAR = false_alarms / (false_alarms + correct_rejections)
-    """
-    total_signal = hits + misses
-    total_noise  = false_alarms + correct_rejections
-
-    if total_signal == 0 or total_noise == 0:
-        return 0.0
-
-    pHit = (hits + 0.5) / (total_signal + 1.0)
-    pFA  = (false_alarms + 0.5) / (total_noise + 1.0)    
-
-    # Convert to Z scores, no error checking
-    zHit = norm.ppf(pHit)
-    zFA = norm.ppf(pFA)
-
-    dprime = zHit - zFA
-
-    # crit = (zHit + zFA) / -2
-    # crit_prime = crit / dprime    
-    return dprime
-
-
 class MEG_Chicken:
     def __init__(self):
         """ The main window for collecting participant info. """
@@ -72,14 +42,17 @@ class MEG_Chicken:
         self.results = []  # store trial-wise dict
         self.trial_accuracies = []
 
-        # for overall timing
+        # Flag for user decision to Save & Quit mid-experiment
+        self.user_wants_to_quit = False
+
+        # for overall timing, not sure if im using this since we now have save and quit
         self.global_start_time = None 
 
         # UI for participant settings
         self.participant_number_entry = self.create_label_entry(self.window, "Participant Number:", 0)
-        # What's the point but... yeah... I'm keeping this tho
-        self.experience_level_entry = self.create_label_entry(self.window, "Experience Level (1-4):", 1)
-        self.session_number_entry = self.create_label_entry(self.window, "Session Number:", 2)
+        # Maybe we can do something? but not now
+        # self.experience_level_entry = self.create_label_entry(self.window, "Experience Level (1-4):", 1)
+        self.session_number_entry = self.create_label_entry(self.window, "Session Number:", 1)
 
         self.feedback_var = tk.BooleanVar(value=False)
         feedback_checkbox = tk.Checkbutton(self.window, text="Enable Immediate Feedback", variable=self.feedback_var)
@@ -93,7 +66,7 @@ class MEG_Chicken:
         deselect_checkbox = tk.Checkbutton(self.window, text="Enable Deselect", variable=self.deselect_var)
         deselect_checkbox.grid(row=5, column=1, columnspan=2, sticky="w")
 
-        self.mode_var = tk.StringVar(value="ICA")
+        self.mode_var = tk.StringVar(value="EEG/MEG")
         radio_ica = tk.Radiobutton(self.window, text="ICA", variable=self.mode_var, value="ICA")
         radio_ica.grid(row=3, column=0, sticky="w")
         radio_eeg_meg = tk.Radiobutton(self.window, text="EEG/MEG", variable=self.mode_var, value="EEG/MEG")
@@ -124,7 +97,7 @@ class MEG_Chicken:
     def on_submit(self):
         """ Validate input, optionally show instructions, then run the experiment. """
         participant_number = self.participant_number_entry.get()
-        experience_level = self.experience_level_entry.get()
+        # experience_level = self.experience_level_entry.get()
         session_number = self.session_number_entry.get()
         feedback = self.feedback_var.get()
         show_instruc = self.show_instruc_var.get()
@@ -137,9 +110,9 @@ class MEG_Chicken:
         if not session_number.isdigit():
             messagebox.showerror("Invalid Input", "Session number must be a number.")
             return
-        if not experience_level.isdigit() or not (1 <= int(experience_level) <= 4):
-            messagebox.showerror("Invalid Input", "Experience level must be 1 ~ 4.")
-            return
+        # if not experience_level.isdigit() or not (1 <= int(experience_level) <= 4):
+        #     messagebox.showerror("Invalid Input", "Experience level must be 1 ~ 4.")
+        #     return
 
         # Show instructions if needed
         if show_instruc:
@@ -158,11 +131,10 @@ class MEG_Chicken:
 
         # Hide the participant info window
         self.window.withdraw()
-
         # Run
         self.run_experiment(
             participant_number,
-            experience_level,
+            # experience_level,
             session_number,
             feedback=feedback,
             mode_ica=mode_ica,
@@ -193,10 +165,10 @@ class MEG_Chicken:
 
     def run_experiment(self,
                        participant_number,
-                       experience_level,
+                    #    experience_level,
                        session_number,
                        feedback=True,
-                       n_trials=50,
+                       n_trials=config.n_trials_per_session,
                        mode_ica=True,
                        deselect=False,
                        channel_types=None):
@@ -204,55 +176,97 @@ class MEG_Chicken:
         Output: 
         1. trial results in CSV.
         2. Experiment response time in CSV
+        3. Run the rest of the trial if session is created but not completed
+        4. Allowing to Save and Quit mid-session and resume next time
         """
+        if channel_types is None:
+            channel_types = ["eeg", "mag", "grad"]
+
+        session_id = f"{participant_number}_{session_number}"
+        session_dir = config.session_dir
+        os.makedirs(session_dir, exist_ok=True)
+        session_file_path = os.path.join(session_dir, f"{session_id}_{'ICA' if mode_ica else 'MEEG'}.pkl")
+        
+        os.makedirs(config.res_dir, exist_ok=True)
+        output_csv = os.path.join(
+            config.res_dir,
+            f"results_{participant_number}_{session_number}_{'ICA' if mode_ica else 'MEEG'}_{'exp' if feedback else 'ctrl'}.csv"
+        )
+
+        completed_trial_ids = set()
+        if os.path.exists(output_csv):
+            with open(output_csv, "r", newline="") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    try:
+                        row["Trial"] = int(row["Trial"])
+                    except ValueError:
+                        continue
+                    for num_field in ["Hits","FalseAlarms","Misses","CorrectRejections"]:
+                        if num_field in row:
+                            row[num_field] = int(row[num_field])
+                    for float_field in ["StartTime_s","EndTime_s","Accuracy"]:
+                        if float_field in row:
+                            row[float_field] = float(row[float_field])
+
+                    completed_trial_ids.add(row["Trial"])                    
+                    # Store the row in self.results
+                    self.results.append(row)
+                    if "Accuracy" in row:
+                        self.trial_accuracies.append(row["Accuracy"])
+
+        # If no file exist for corresponding session id, we create one 
+        if not os.path.exists(session_file_path):
+            trials_list = []
+            if mode_ica:
+                data_path = config.ica_dir
+                all_files = run_funcs.collect_files(data_path, channel_types, '_ica.fif', 'ICA')
+                if all_files is None:
+                    return
+                trials_list = run_funcs.process_trial_files(all_files, n_trials, 'ICA', data_path)
+            
+            else:
+                data_path = config.trials_dir
+                all_files = run_funcs.collect_files(data_path, channel_types, '.pkl', 'MEEG')
+                if all_files is None:
+                    return
+                trials_list = run_funcs.process_trial_files(all_files, n_trials, 'MEEG', data_path)
+            
+            # Save session file
+            with open(session_file_path, "wb") as f_pkl:
+                pickle.dump(trials_list, f_pkl)
+            print(f"Session file created: {session_file_path}, total trials={len(trials_list)}")
+        else:
+            # If exist, load
+            with open(session_file_path, "rb") as f_pkl:
+                trials_list = pickle.load(f_pkl)
+            print(f"Session file found. Total trials in session file: {len(trials_list)}")
+
+        # 4) Filter out the completed trials
+        remaining_trials = [t for t in trials_list if t["Trial"] not in completed_trial_ids]
+        print("num remaining_trials", len(remaining_trials))
+        print("completed_trial_ids", completed_trial_ids)
+        if len(remaining_trials) == 0:
+            messagebox.showinfo("All Trials Done", "All trials have been completed for this session!")
+            self._close_all_windows() 
+            return        
+                
         # Initialize the always-open trial result window to show default instruction
         self.trial_result_window = TrialResultWindow(master=self.window)
         self.open_windows.append(self.trial_result_window.master)
 
-        # The experiment "global" start time
-        self.global_start_time = time.time()
+        for trial_idx, trial_info in enumerate(remaining_trials, start= len(completed_trial_ids) + 1):
+            print(trial_idx)
+            if self.user_wants_to_quit:
+                break
 
-        if channel_types is None:
-            channel_types = ["eeg", "mag", "grad"]
-
-        if mode_ica:
+            if trial_info["mode"] == "ICA":
             # =======================================================
             #                    ICA mode 
             # =======================================================
-            # Go find files (from ICA folders since trial files are just for EEG)
-            data_path = os.path.join('data', 'ica')
-
-            all_ica_files = []
-            for ch_type in channel_types:
-                ch_dir = os.path.join(data_path, ch_type)
-                if not os.path.isdir(ch_dir):
-                    print(f"Warning: {ch_dir} not found or not a directory.")
-                    continue
-                files_in_ch_dir = [f for f in os.listdir(ch_dir) if f.endswith('_ica.fif')]
-                for ica_file in files_in_ch_dir:
-                    full_path = os.path.join(ch_dir, ica_file)
-                    all_ica_files.append((ch_type, full_path))
-
-            if len(all_ica_files) == 0:
-                print("No ICA files found for the specified channel_types.")
-                return
-
-            # Randomly selecting files according to the params
-            chosen_ica_files = random.sample(all_ica_files, min(n_trials, len(all_ica_files)))
-
-            # Yes, I know it's loading the whole file
-            ica_remove = {}
-            config_file = 'config.json'
-            if os.path.exists(config_file):
-                with open(config_file, 'r') as file:
-                    config_data = json.load(file)
-                ica_remove = config_data.get("ICA_remove_inds", {})
-
-
-            
-            for trial_idx, (ch_type, ica_path) in enumerate(chosen_ica_files, start=1):
-                ica_filename = os.path.basename(ica_path)
-                print(f"[ICA Mode] Processing: {ica_filename} (Trial {trial_idx}/{n_trials}), channel_type={ch_type}")
+                ch_type = trial_info["ch_type"]
+                ica_filename = os.path.basename(trial_info["trial_path"])
+                print(f"[ICA] Trial {trial_idx}/{config.n_trials_per_session} => {ica_filename} (ch={ch_type})")
 
                 name_split = ica_filename.split('_')
                 try:
@@ -260,22 +274,28 @@ class MEG_Chicken:
                 except IndexError:
                     subj, ses, run = "unknown_subj", "unknown_ses", "unknown_run"
 
-                ica = mne.preprocessing.read_ica(ica_path)
-                raw_dir = os.path.join('data', 'preprocessed')
-                raw_file_name = subj + '_' + ses + '_' + run + '_preprocessed_raw.fif'
-                raw_file_path = os.path.join(raw_dir, raw_file_name)
+                ica = mne.preprocessing.read_ica(trial_info["trial_path"])
+
+                raw_file_name = f"{subj}_{ses}_{run}_preprocessed_raw.fif"
+                raw_file_path = os.path.join(config.preprocessed_save_path, raw_file_name)
                 if not os.path.exists(raw_file_path):
                     print(f"Cannot find {raw_file_path}. Skipping trial.")
                     continue
-                # raw_preprocessed = mne.io.read_raw_fif(raw_file_path, preload=True, allow_maxshield=True)
-                raw_preprocessed = mne.io.read_raw(raw_file_path, preload=True, allow_maxshield=True)
+                raw_preprocessed = mne.io.read_raw_fif(raw_file_path, preload=True, allow_maxshield=True)
 
                 # Answers
-                run_ind = run + '.fif'
+                ica_remove = {}
+                answer_dir = config.answer_dir
+                answer_data_file = 'answer_standardized.json'
+                answer_data_path = os.path.join(answer_dir, answer_data_file)
+                if os.path.exists(answer_data_path):
+                    with open(answer_data_path, 'r') as file:
+                        answer_data = json.load(file)
+                    ica_remove = answer_data.get("ICA_remove_inds", {})
                 bad_components = []
-                if (subj in ica_remove) and (run_ind in ica_remove[subj]) and (ch_type in ica_remove[subj][run_ind]):
-                    bad_components = ica_remove[subj][run_ind][ch_type]
-
+                if (subj in ica_remove) and (ses in ica_remove[subj]) and (run in ica_remove[subj][ses]) and (ch_type in ica_remove[subj][ses][run]):
+                    bad_components = ica_remove[subj][ses][run][ch_type]
+                
                 print(bad_components)
 
                 fig = custome_ica_plot(
@@ -286,49 +306,46 @@ class MEG_Chicken:
                     inst=raw_preprocessed,
                     nrows=5,
                     ncols=10,
-                    master = self.window
+                    master=self.window,
+                    title=f"Trial {trial_idx} - {ch_type}"
                 )
+
                 # Trial start time after plotting since it takes some time to initialize
                 # Not exactly sure to use real time or interval
-                #trial_start_time = time.time() - self.global_start_time
                 trial_start_time = time.time()
 
-                selected_comps = set()                         
+                selected_comps = set()
 
                 def on_close_ica_fig(event):
                     """When the ICA figure is closed, finalize the trial metrics."""
-                    # Register the time when click close
                     trial_end_time = time.time()
-                    
                     fig.canvas.mpl_disconnect(cid_close)
                     plt.close(fig)
 
                     selected_comps.update(ica.exclude)
-
-                    # compute hits / false alarms, etc.
                     hits = len(set(bad_components) & selected_comps)
                     false_alarms = len(selected_comps - set(bad_components))
                     misses = len(set(bad_components) - selected_comps)
-                    n_components = len(ica.get_components())
+                    n_components = config.ica_components
                     correct_rejections = n_components - len(set(bad_components) | selected_comps)
 
                     denom = hits + false_alarms + misses + correct_rejections
                     accuracy = (hits + correct_rejections) / denom if denom > 0 else 0
-                    dprime_val = compute_dprime(hits, false_alarms, misses, correct_rejections)
 
-                    # if feedback: # Or no feedback at all when no feedback?
-                    messagebox.showinfo(
-                        "Trial Feedback",
-                        f"Trial {trial_idx} ended!\n\n"
-                        f"Hits: {hits}\nFalse Alarms: {false_alarms}\n"
-                        f"Misses: {misses}\nCorrect Rejections: {correct_rejections}\n"
-                        f"Accuracy: {accuracy*100:.1f}%\nD-prime: {dprime_val:.3f}"
+                    summary_window = TrialEndWindow(
+                    master=self.window,
+                    trial_idx=trial_idx,
+                    hits=hits,
+                    false_alarms=false_alarms,
+                    misses=misses,
+                    correct_rejections=correct_rejections
                     )
-
-                    # Update the always-open line chart with the new accuracy
-                    # self.trial_result_window.update_accuracy(accuracy)
+                    if summary_window.user_wants_quit:
+                        self.user_wants_to_quit = True
+                    
                     self._update_accuracy_safely(trial_idx, accuracy)
-                    # Store the result
+
+                    
                     row_dict = {
                         'Trial': trial_idx,
                         'StartTime_s': trial_start_time,
@@ -340,54 +357,31 @@ class MEG_Chicken:
                         'FalseAlarms': false_alarms,
                         'Misses': misses,
                         'CorrectRejections': correct_rejections,
-                        'Accuracy': accuracy,
-                        'Dprime': dprime_val
+                        'Accuracy': accuracy
                     }
-                    self.results.append(row_dict)
+                    self._append_result_to_csv(row_dict, output_csv)
+
                 cid_close = fig.canvas.mpl_connect('close_event', on_close_ica_fig)
 
-                # Show the figure in a blocking way so user can interact
                 plt.show(block=True)
 
-        else:
-            # ===================================================================
-            #                        EEG/MEG mode 
-            # ===================================================================
-            data_path = os.path.join('data', 'trial_data')
-
-            all_files = []
-            for ch_type in channel_types:
-                ch_dir = os.path.join(data_path, ch_type)
-                if os.path.isdir(ch_dir):
-                    files_in_ch_dir = [
-                        f for f in os.listdir(ch_dir)
-                        if f.startswith('trial_') and f.endswith('.pkl')
-                    ]
-                    files_in_ch_dir = [os.path.join(ch_dir, f) for f in files_in_ch_dir]
-                    all_files.extend(files_in_ch_dir)
-                else:
-                    print(f"Warning: {ch_dir} not found or is not a directory.")
-
-            if len(all_files) == 0:
-                print("No trial files found for the specified channel_types.")
-                return
-
-            file_paths = np.random.choice(all_files, min(n_trials, len(all_files)), replace=False)
-
-            for trial_idx, trial_file in enumerate(file_paths, start=1):
-                trial_start_time = time.time() - self.global_start_time
-
-                with open(trial_file, 'rb') as f:
-                    trial_dict = pickle.load(f)
-                trial_data = trial_dict["data"]
-                bad_channels_in_display = trial_dict["bad_chans_in_display"]
-                channel_type = trial_dict.get("channel_type", "Unknown")
+            else:
+                # ===================================================================
+                #                        MEEG mode 
+                # ===================================================================
+                file_path = trial_info["trial_path"]
+                print(file_path)
+                with open(file_path, 'rb') as f:
+                    tdict = pickle.load(f)
+                trial_data = tdict["data"]
+                bad_channels_in_display = tdict["bad_chans_in_display"]
+                channel_type = tdict.get("channel_type", "Unknown")
 
                 n_channels = trial_data.info['nchan']
                 selected_channels = set()
 
-                print(f"[EEG/MEG Mode] Processing file: {os.path.basename(trial_file)} (Trial {trial_idx})")
-                print(f"Bad channels in display: {bad_channels_in_display}")
+                print(f"[EEG/MEG] Trial {trial_idx}/{config.n_trials_per_session} => {os.path.basename(file_path)}")
+                trial_start_time = time.time()
 
                 def on_pick(event):
                     artist = event.artist
@@ -413,32 +407,28 @@ class MEG_Chicken:
                     fig.canvas.mpl_disconnect(cid_close)
                     plt.close(fig)
 
-                    print(selected_channels)
                     hits = len(set(bad_channels_in_display) & selected_channels)
                     false_alarms = len(selected_channels - set(bad_channels_in_display))
                     misses = len(set(bad_channels_in_display) - selected_channels)
                     correct_rejections = n_channels - len(selected_channels | set(bad_channels_in_display))
 
-                    accuracy = (hits + correct_rejections) / \
-                               (hits + false_alarms + misses + correct_rejections) \
-                               if (hits + false_alarms + misses + correct_rejections) > 0 else 0
-                    dprime = compute_dprime(hits, false_alarms, misses, correct_rejections)
+                    denom = hits + false_alarms + misses + correct_rejections
+                    accuracy = (hits + correct_rejections) / denom if denom > 0 else 0
 
-                    # if feedback:
-                    messagebox.showinfo(
-                        "Trial Feedback",
-                        f"Trial {trial_idx} ended!\n\n"
-                        f"Hits: {hits}\nFalse Alarms: {false_alarms}\n"
-                        f"Misses: {misses}\nCorrect Rejections: {correct_rejections}\n"
-                        f"Accuracy: {accuracy*100:.1f}%\nD-prime: {dprime:.3f}"
+                    summary_window = TrialEndWindow(
+                    master=self.window,
+                    trial_idx=trial_idx,
+                    hits=hits,
+                    false_alarms=false_alarms,
+                    misses=misses,
+                    correct_rejections=correct_rejections
                     )
-
-                    # Update line chart
-                    #self.trial_result_window.update_accuracy(trial_idx, accuracy)
+                    if summary_window.user_wants_quit:
+                        self.user_wants_to_quit = True
+                    
                     self._update_accuracy_safely(trial_idx, accuracy)
 
-                    # Store
-                    trial_end_time = time.time() - self.global_start_time
+                    trial_end_time = time.time()
                     row_dict = {
                         'Trial': trial_idx,
                         'StartTime_s': trial_start_time,
@@ -450,10 +440,9 @@ class MEG_Chicken:
                         'FalseAlarms': false_alarms,
                         'Misses': misses,
                         'CorrectRejections': correct_rejections,
-                        'Accuracy': accuracy,
-                        'Dprime': dprime
+                        'Accuracy': accuracy
                     }
-                    self.results.append(row_dict)
+                    self._append_result_to_csv(row_dict, output_csv)
 
                 def on_key(event):
                     if event.key == 'tab':
@@ -474,23 +463,36 @@ class MEG_Chicken:
 
                 plt.show(block=True)
 
-        # After all trials, save CSV
-        output_csv = f"results_{participant_number}_{session_number}_{experience_level}_{'exp' if feedback else 'ctrl'}.csv"
+            if self.user_wants_to_quit:
+                break
+
+        if not self.user_wants_to_quit:
+            self.show_final_report(self.results)
+        else:
+            messagebox.showinfo("Session Paused", "You chose to save & quit. Next time, the remaining trials will resume.")
+            self._close_all_windows()
+
+
+    def _append_result_to_csv(self, row_dict, csv_path):
+        """
+        Append one trial row to an existing or new CSV file.
+        Also store it to self.results in memory.
+        """
         fieldnames = [
             'Trial', 'StartTime_s', 'EndTime_s', 'ChannelType',
             'SelectedChannels', 'BadChannels',
             'Hits', 'FalseAlarms', 'Misses', 'CorrectRejections',
-            'Accuracy', 'Dprime'
+            'Accuracy'
         ]
-        with open(output_csv, 'w', newline='') as csvfile:
+        file_existed = os.path.exists(csv_path)
+        with open(csv_path, 'a', newline='') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writeheader()
-            for row_data in self.results:
-                writer.writerow(row_data)
+            if not file_existed or os.path.getsize(csv_path) == 0:
+                writer.writeheader()
+            writer.writerow(row_dict)
 
-        print("Experiment completed. Results saved to:", output_csv)
+        self.results.append(row_dict)
 
-        self.show_final_report(self.results)
 
     def show_final_report(self, results):
         """
@@ -507,7 +509,7 @@ class MEG_Chicken:
         report_window.configure(bg="white")
 
         self.open_windows.append(report_window)
-        report_window.protocol("WM_DELETE_WINDOW", self.close_all_windows)
+        report_window.protocol("WM_DELETE_WINDOW", self._close_all_windows)
 
         # Summaries by channel type
         metrics_by_type = {}
@@ -535,7 +537,7 @@ class MEG_Chicken:
             cr = data['cr']
             denom = hits + fa + misses + cr
             accuracy = (hits + cr) / denom if denom > 0 else 0
-            dprime_val = compute_dprime(hits, fa, misses, cr)
+            dprime_val = run_funcs.compute_dprime(hits, fa, misses, cr)
             lines.append(
                 f"Type={ctype}, Trials={data['count']} => "
                 f"Hits={hits}, FA={fa}, Misses={misses}, CR={cr}, "
@@ -552,7 +554,7 @@ class MEG_Chicken:
         total_cr = sum(d['cr'] for d in metrics_by_type.values())
         total_denom = total_hits + total_fa + total_misses + total_cr
         overall_acc = (total_hits + total_cr) / total_denom if total_denom > 0 else 0
-        overall_dprime = compute_dprime(total_hits, total_fa, total_misses, total_cr)
+        overall_dprime = run_funcs.compute_dprime(total_hits, total_fa, total_misses, total_cr)
 
         overall_text = (
             f"Overall => Hits={total_hits}, FA={total_fa}, Misses={total_misses}, CR={total_cr}\n"
@@ -597,7 +599,7 @@ class MEG_Chicken:
         # 3) color cycle
         color_cycle = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
-        ctype_list = list(ctype2points.keys())  # ['eeg','mag','grad'] in random order
+        ctype_list = list(ctype2points.keys())
         for i, ctype in enumerate(ctype_list):
             ax = axes[i]
             ax.set_title(f"{ctype} Trial-by-Trial Accuracy")
@@ -630,10 +632,10 @@ class MEG_Chicken:
         canvas.get_tk_widget().pack(side="top", fill="both", expand=True)
 
         # close button so that we can ensure close safely
-        close_button = tk.Button(report_window, text="Close", command=self.close_all_windows)
+        close_button = tk.Button(report_window, text="Close", command=self._close_all_windows)
         close_button.pack(pady=10)
 
-    def close_all_windows(self):
+    def _close_all_windows(self):
         """
         Gracefully close all open windows and quit like a winner without force quitting
         """                       
@@ -657,13 +659,13 @@ class MEG_Chicken:
     def _update_accuracy_safely(self, trial_idx, accuracy):
         self.trial_accuracies.append(accuracy)
         try:
-            # If the root was destroyed, this call might fail
             if (not self.trial_result_window) or (not self.trial_result_window.master.winfo_exists()):
                 print("Re-creating the trial result window because it was closed")
                 self.trial_result_window = TrialResultWindow(master=self.window)
                 self.open_windows.append(self.trial_result_window.master)
         except tk.TclError:
-            print("Main app is destroyed, skipping update_accuracy_safely")
+            # Most probably won't happen but who knows
+            print("Main app is destroyed.")
             return
 
         self.trial_result_window.set_accuracies(self.trial_accuracies)

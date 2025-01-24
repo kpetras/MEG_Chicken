@@ -59,7 +59,8 @@ class TrialResultWindow:
             self.master = tk.Toplevel(master)
         self.master.title("Trial Result Window")
         self.master.configure(bg="white")
-        
+        # self.master.geometry("500x300+500+300")
+        self.master.attributes("-top", True)
         self.plot_created = False # Flag
         self.master.protocol("WM_DELETE_WINDOW", self._on_user_close)
         self.instruction_label = tk.Label(
@@ -112,3 +113,60 @@ class TrialResultWindow:
         self.ax.set_xlim(1, max(1, len(x_data)+1))
         self.ax.set_ylim(0, 1.05)
         self.canvas.draw()
+
+import tkinter as tk
+
+class TrialEndWindow:
+    """
+    A window that pops up at the end of trial (on close).
+    Two options provided:
+    1) Close the trial and move on to the next
+    2) Save and quit
+    """
+
+    def __init__(self, master, trial_idx, hits, false_alarms, misses, correct_rejections):
+        self.master = master
+        
+        self.top = tk.Toplevel(self.master)
+        self.top.title("Trial Feedback")
+        self.top.attributes("-topmost", True)
+        # self.top.geometry("500x300+500+300")
+
+        self.user_wants_quit = False  # Flag
+
+        denom = hits + false_alarms + misses + correct_rejections
+        accuracy = (hits + correct_rejections) / denom if denom > 0 else 0
+        accuracy_percent = f"{accuracy*100:.1f}%"
+
+        info_text = (
+            f"Trial {trial_idx} ended!\n\n"
+            f"Hits: {hits}\n"
+            f"False Alarms: {false_alarms}\n"
+            f"Misses: {misses}\n"
+            f"Correct Rejections: {correct_rejections}\n"
+            f"Accuracy: {accuracy_percent}\n"
+        )
+
+        self.label_info = tk.Label(self.top, text=info_text, font=("Arial", 14), justify="left")
+        self.label_info.pack(padx=20, pady=20)
+
+        btn_frame = tk.Frame(self.top)
+        btn_frame.pack(pady=10)
+
+        btn_close = tk.Button(btn_frame, text="Close", width=12, command=self._on_close)
+        btn_close.pack(side="left", padx=5)
+
+        btn_savequit = tk.Button(btn_frame, text="Save & Quit", width=12, command=self._on_save_quit)
+        btn_savequit.pack(side="left", padx=5)
+
+        self.top.grab_set()
+        self.top.wait_window(self.top)
+
+    def _on_close(self):
+
+        self.user_wants_quit = False
+        self.top.destroy()
+
+    def _on_save_quit(self):
+        self.user_wants_quit = True
+        self.top.destroy()
