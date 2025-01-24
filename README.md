@@ -58,6 +58,7 @@ python preproc.py MEEG ICA TRIAL
 ```
 
 Options:
+
 `--l-freq`, `--h-freq`, `--notch-freq`: set filter cutoffs.
 
 `--n-components`: for ICA.
