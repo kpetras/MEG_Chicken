@@ -86,6 +86,6 @@ This project is licensed under the GNU General Public License v3.0. See the [LIC
 
 ### Acknowledgements
 
-Special thanks to the contributors for their support and resources.
+Special thanks to the contributors for their support and resources. 
 
 
