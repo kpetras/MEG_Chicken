@@ -13,15 +13,15 @@ authors:
   - name: Kirsten Petras
     orcid: 0000-0001-5865-921X
     affiliation: 1
-    equal-contrib: false 
+    equal-contrib: true 
   - name: Yue Kong
     affiliation: 1
     orcid: 0009-0002-3679-4300
-    equal-contrib: false
+    equal-contrib: true
   - name: Hayley Yingxuan Wu
     affiliation: 1
     orcid: 0009-0009-5750-6591
-    equal-contrib: false
+    equal-contrib: true
   - name: Laura Dugué
     orcid: 0000-0003-3085-1458
     equal-contrib: false
