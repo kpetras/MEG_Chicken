@@ -39,6 +39,8 @@ cd MEG_Chicken
 
 ### Set Up the Environment
 
+check required dependencies in requirements.txt
+
 ## Usage
 
 ### Preprocessing with preproc.py
