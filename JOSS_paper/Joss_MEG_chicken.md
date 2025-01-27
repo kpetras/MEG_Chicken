@@ -34,6 +34,7 @@ affiliations:
     index: 2
 
 date: 17 January 2025
+bibliography: paper_MEG_Chicken.bib
 ---
 
 # Statement of Need
@@ -44,7 +45,7 @@ To streamline and standardize the training process, we developed `MEG Chicken`, 
 
 # Functionality
 
-`MEG Chicken` is built on the MNE-Python library and employs MNE's user-friendly graphical interface for visualizing time-series data and sensor topographies. The software includes labeled example datasets available for download via Zenodo, and labs can import or create their own labeled datasets through the interactive interface.
+`MEG Chicken` is built on the MNE-Python library and employs MNE's user-friendly graphical interface for visualizing time-series data and sensor topographies. The software includes labeled example datasets available for download via Zenodo, and labs can import or create their own labeled datasets through the interactive interface [@alexander_measurement_2006].
 
 The training program includes modules for:
 
