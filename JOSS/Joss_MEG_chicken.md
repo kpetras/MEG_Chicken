@@ -3,8 +3,8 @@ title: "MEG Chicken: Interactive Artifact Detection Training for MEG and EEG dat
 
 tags:
   - Python
-  - EEG
   - MEG
+  - EEG
   - Artifact Detection
   - Implicit Learning
   - Feedback
@@ -34,13 +34,18 @@ affiliations:
     index: 2
 
 date: 17 January 2025
+
+bibliography: references.bib
 ---
 
 # Statement of Need
 
-Detecting and processing signal artifacts is crucial for analyzing neural time-series data from electroencephalography (EEG) or magnetoencephalography (MEG) recordings. While numerous automated and semi-automated artifact detection algorithms exist, visual inspection and manual labeling remain the most widely used methods for identifying components contaminated by eye movements, muscle activity, or electrical noise. Despite excellent resources describing common physiological and electrical artifacts in MEG and EEG data, decisions about segment or component rejection are ultimately subjective. This subjectivity often results in inconsistencies, particularly when training new lab members.
+Detecting and processing signal artifacts is crucial for analyzing neural time-series data from electroencephalography (EEG) or magnetoencephalography (MEG) recordings [@luck_electroencephalography_2017]. While numerous automated and semi-automated artifact detection algorithms exist e.g.,[@jas_autoreject_2017], visual inspection and manual labeling remain the most widely used methods for identifying components contaminated by eye movements, muscle activity, or electrical noise. Despite excellent resources describing common physiological and electrical artifacts in MEG and EEG data [@burgess_recognizing_2020;@uriguen_eeg_2015], decisions about segment or component rejection are ultimately subjective. This subjectivity often results in inconsistencies, particularly when training new lab members.
 
-To streamline and standardize the training process, we developed `MEG Chicken`, a software tool designed for self-paced, implicit learning of artifact detection. The tool presents trainees with data containing various types of artifacts and provides immediate feedback on their decisions, enabling consistent rejection criteria to be learned implicitly. Labs can customize the training with their own annotated datasets to ensure alignment with lab-specific standards.
+Implicit or procedural learning refers to the acquisition of skills and knowledge through repeated exposure and practice, without explicit instruction. A well established example of implicit rule learning is chicken sexing, where workers learn to distinguish the sex of day-old chicks based on subtle visual cues. Despite often not being able to articulate which exact features distinguish between male and female chicks, experienced chicken sexers can classify chicks accurately and reliably through extensive experience and feedback [@horsey_art_nodate]. 
+
+`MEG Chicken` uses the principle of implicit learning through immediate feedback to streamline and standardize the process of learning to detect artifacts in electrophysiology data. The open source software tool presents trainees with data containing various types of artifacts and provides immediate feedback on their decisions, enabling consistent rejection criteria to be learned implicitly. 
+Labs can customize the training with their own annotated datasets to ensure alignment with lab-specific standards.
 
 # Functionality
 
@@ -66,12 +71,10 @@ Testing on 5 observes, naive to MEG and EEG artefacts, showed:
 
 **Table:**
 
-| Task                  | Average Time to Mastery | Final Accuracy | Retest Accuracy |
-|-----------------------|--------------------------|----------------|-----------------|
-| Bad Channel Rejection| xx minutes              | xx%            | xx%             |
-| ICA Component Selection| xx minutes             | xx%            | xx%             |
-
-**Figure:** A visual example of the training interface and feedback loop. (Include figure placeholder or file reference here.)
+| Task                   | Average Time to Mastery | Final Accuracy | Retest Accuracy |
+|------------------------|-------------------------|----------------|-----------------|
+| Bad Channel Rejection  | xx minutes              | xx%            | xx%             |
+| ICA Component Selection| xx minutes              | xx%            | xx%             |
 
 # Funding
 
