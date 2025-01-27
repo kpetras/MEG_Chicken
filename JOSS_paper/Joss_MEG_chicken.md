@@ -34,7 +34,6 @@ affiliations:
     index: 2
 
 date: 17 January 2025
-bibliography: paper_MEG_Chicken.bib
 ---
 
 # Statement of Need
