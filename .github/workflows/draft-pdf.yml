@@ -12,17 +12,17 @@ jobs:
         uses: openjournals/openjournals-draft-action@master
         with:
           journal: joss
-          paper-path: JOSS_paper/Joss_MEG_chicken.md
+          paper-path: JOSS/Joss_MEG_chicken.md
       - name: List files for debugging
         run: ls -R
       - name: Commit PDF to repository
         uses: EndBug/add-and-commit@v9
         with:
           message: '(auto) Paper PDF Draft'
-          add: 'JOSS_paper/Joss_MEG_chicken.pdf'
+          add: 'JOSS/paper.pdf'
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: paper
-          path: JOSS_paper/Joss_MEG_chicken.pdf
+          path: JOSS/paper.pdf
 
