@@ -1,6 +1,7 @@
 from scipy.stats import norm
 import os
 import random
+from tkinter import messagebox
 def compute_dprime(hits, false_alarms, misses, correct_rejections):
     """
     Compute d-prime based on hits/misses/false alarms/correct rejections.
@@ -67,3 +68,27 @@ def process_trial_files(all_files, n_trials, mode, data_path):
         })
     
     return trials_list
+
+def scan_directories(scan_answers=False):
+    """
+    Scans stuffs
+    """
+    if scan_answers:
+        data_root = os.path.join("data", "answer")
+        try:
+            all_items = os.listdir(data_root)
+        except FileNotFoundError:
+            messagebox.showerror("Error", f"Answer directory '{data_root}' not found.")
+            return []
+        return [item for item in all_items if item.endswith(".json")]
+    
+    else:
+        data_root = "data"
+        excluded_dirs = {"raw", "answer", "session_data", "results"}
+        try:
+            all_items = os.listdir(data_root)
+        except FileNotFoundError:
+            messagebox.showerror("Error", f"Data folder '{data_root}' not found.")
+            return []
+        
+        return [item for item in all_items if os.path.isdir(os.path.join(data_root, item)) and item not in excluded_dirs]

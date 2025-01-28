@@ -11,8 +11,8 @@ import config
 #           ICA
 # -------------------------------
 def fit_and_save_ica(
-    raw, 
-    ica_save_path, 
+    raw,  # always "data/raw" 
+    ica_save_path, # data/datasetName/ica
     ica_name,
     channel_type,
     n_components=config.ica_components, 
@@ -28,7 +28,7 @@ def fit_and_save_ica(
     ica_ch_save_path = os.path.join(ica_save_path,channel_type)
     os.makedirs(ica_ch_save_path, exist_ok=True)
     ica.save(os.path.join(ica_ch_save_path,ica_name), overwrite=True)
-    print(f"[ICA] {channel_type} → saved to {os.path.join(ica_ch_save_path,ica_name)}")
+    print(f"[ICA] {channel_type} saved to {os.path.join(ica_ch_save_path,ica_name)}")
 
 
 # -------------------------------
@@ -77,8 +77,8 @@ def select_and_shuffle_channels(
 # PREPROCESS + MAKE TRIALS + ICA
 # -------------------------------
 def preprocess_and_make_trials(
-    data_dir, 
-    trials_dir, 
+    raw_dir, # always "data/raw" 
+    dataset_dir, # data/datasetName/
     channel_types,
     l_freq=0.1, 
     h_freq=80, 
@@ -88,29 +88,54 @@ def preprocess_and_make_trials(
     total_channels=15, 
     max_bad_channels=3, 
     min_bad_channels=1,
+    do_preprocessing = True,
     do_ica=False,
     do_trial=True,
-    ica_dir=config.ica_dir,
     n_components=config.ica_components,
-    ica_method='fastica',
-    random_state=42
+    ica_method=config.ica_method,
+    random_state=config.ica_seed,
+    answer_file=None
 ):
+    
+    preprocessed_dir = os.path.join(dataset_dir, 'preprocessed')
+    ica_dir = os.path.join(dataset_dir, 'ica')
+    trials_dir = os.path.join(dataset_dir, 'trials')
 
+
+    # If do_trial is True, we absolutely need the 'answer' JSON and it should be there already
+    if do_trial:
+        if not answer_file or not os.path.isfile(answer_file):
+            print(f"[ERROR] Specified answer file not found or none provided:\n  {answer_file}")
+            print("Stopping the program.")
+            return
+        else:
+            with open(answer_file, 'r') as file:
+                answer_data = json.load(file)
+    else:
+        answer_data = {}
+
+    # Print all preprocessing params (only if do_preprocessing is True).
     print(f"\n=== Preprocessing for {channel_types} | do_ica={do_ica} | do_trial={do_trial} ===")
-
-    with open('answer_standardized.json', 'r') as file:
-        answer_data = json.load(file)
+    if do_preprocessing:
+        print("\n[PREPROCESSING] Parameters:")
+        print(f"  - l_freq      = {l_freq}")
+        print(f"  - h_freq      = {h_freq}")
+        print(f"  - notch_freq  = {notch_freq}")
+        print(f"  - n_components= {n_components}")
+        print(f"  - ica_method  = {ica_method}")
+        print(f"  - random_state= {random_state}")
+        print("")
 
     data_files = [
-        f for f in os.listdir(data_dir) 
+        f for f in os.listdir(raw_dir) 
         if not f.startswith('.') #if not hidden
     ]
     if not data_files:
-        print(f"No files found in {data_dir}. Skipping.")
+        print(f"No files found in {raw_dir}. Skipping.")
         return
 
     for data_file in data_files:
-        file_path = os.path.join(data_dir, data_file)
+        file_path = os.path.join(raw_dir, data_file)
 
         # Try to parse out subj_ses_run from the filename
         # Assumed convention subj_ses_run_whatever.as_long_as_mne_likes_it
@@ -126,10 +151,11 @@ def preprocess_and_make_trials(
         # 1) Load & Filter
         # -------------------------
         raw = mne.io.read_raw(file_path, preload=True, allow_maxshield=True)
-        freqs = [notch_freq * i for i in range(1, 5)]
-        raw.notch_filter(freqs=freqs)
-        raw.filter(l_freq=l_freq, h_freq=None, fir_design='firwin')
-        raw.filter(l_freq=None, h_freq=h_freq, fir_design='firwin')
+        if do_preprocessing:
+            freqs = [notch_freq * i for i in range(1, 5)]
+            raw.notch_filter(freqs=freqs)
+            raw.filter(l_freq=l_freq, h_freq=None, fir_design='firwin')
+            raw.filter(l_freq=None, h_freq=h_freq, fir_design='firwin')
 
         # -------------------------
         # 2) ICA (optional)
@@ -150,8 +176,8 @@ def preprocess_and_make_trials(
                     )
             # Force save preprocessed raw files in .fif format for ICA plot_properties
             preprocessed_filename = f"{subj}_{ses}_{run}_preprocessed_raw.fif"
-            os.makedirs(config.preprocessed_save_path, exist_ok=True)
-            preprocessed_save_path = os.path.join(config.preprocessed_save_path, preprocessed_filename)
+            os.makedirs(preprocessed_dir, exist_ok=True)
+            preprocessed_save_path = os.path.join(preprocessed_dir, preprocessed_filename)
             
             raw.save(preprocessed_save_path, overwrite=True)
             print(f"Preprocessed raw saved at: {preprocessed_save_path}")

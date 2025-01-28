@@ -3,6 +3,7 @@ from tkinter import messagebox
 import os
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.image as mpimg
 
 
 def display_slides(slide_folder, master=None):
@@ -21,12 +22,18 @@ def display_slides(slide_folder, master=None):
 
     slide_window = tk.Toplevel(master)
     slide_window.title("Slide Show")
+    slide_window.state('zoomed') # Full screen
 
-    fig = plt.Figure()
+    # Load the first image to get its resolution since the current one is kinda blurry?
+    slide_image = mpimg.imread(slides[0])
+    img_height, img_width, _ = slide_image.shape
+
+    fig = plt.Figure(figsize=(img_width / 100, img_height / 100), dpi=100)  # Adjust dpi and size
     ax = fig.add_subplot(111)
     slide_image = plt.imread(slides[0])
     img_display = ax.imshow(slide_image)
     ax.axis('off')  # Hide axes
+    
 
     canvas = FigureCanvasTkAgg(fig, master=slide_window)
     canvas.get_tk_widget().grid(row=0, column=0, columnspan=2)

@@ -1,3 +1,4 @@
+# layeggs.py
 import os
 import mne
 import argparse

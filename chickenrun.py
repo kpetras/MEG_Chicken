@@ -4,7 +4,7 @@ import json
 import numpy as np
 import mne
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, ttk
 import pickle
 import csv
 import matplotlib
@@ -48,44 +48,74 @@ class MEG_Chicken:
         # for overall timing, not sure if im using this since we now have save and quit
         self.global_start_time = None 
 
-        # UI for participant settings
+        # Participant Info Rows
         self.participant_number_entry = self.create_label_entry(self.window, "Participant Number:", 0)
-        # Maybe we can do something? but not now
-        # self.experience_level_entry = self.create_label_entry(self.window, "Experience Level (1-4):", 1)
-        self.session_number_entry = self.create_label_entry(self.window, "Session Number:", 1)
+        self.session_number_entry = self.create_label_entry(self.window, "Session Number:", 1) 
+        
+        # Dataset Selection
+        dataset_label = tk.Label(self.window, text="Select Dataset:")
+        dataset_label.grid(row=2, column=0, sticky="e")
+        self.dataset_var = tk.StringVar()
+        dataset_choices = run_funcs.scan_directories(scan_answers=False)
+        self.dataset_cb = ttk.Combobox(self.window, textvariable=self.dataset_var, values=dataset_choices, state="readonly")
+        self.dataset_cb.grid(row=2, column=1, padx=5, pady=5, sticky="w")
+
+        # If any datasets found, select the first by default
+        if dataset_choices:
+            self.dataset_cb.current(0)
+        else:
+            # If no dataset folders found, disable the combobox and warn the user
+            self.dataset_cb.configure(state='disabled')
+            messagebox.showwarning("No Datasets Found", "No dataset subfolders found in 'data/'.")
+        
+        # Answer Selection
+        answer_label = tk.Label(self.window, text="Select Answer:")
+        answer_label.grid(row=3, column=0, sticky="e")
+        self.answer_var = tk.StringVar()
+        answer_choices = run_funcs.scan_directories(scan_answers=True)
+        self.answer_cb = ttk.Combobox(self.window, textvariable=self.answer_var, values=answer_choices, state="readonly")
+        self.answer_cb.grid(row=3, column=1, padx=5, pady=5, sticky="w")
+
+        # If any datasets found, select the first by default
+        if answer_choices:
+            self.dataset_cb.current(0)
+        else:
+            # If no dataset folders found, disable the combobox and warn the user
+            self.dataset_cb.configure(state='disabled')
+            messagebox.showwarning("No Answer File Found", "No json file found in 'data/answer'.")
 
         self.feedback_var = tk.BooleanVar(value=False)
         feedback_checkbox = tk.Checkbutton(self.window, text="Enable Immediate Feedback", variable=self.feedback_var)
-        feedback_checkbox.grid(row=3, column=1, columnspan=2, sticky="w")
+        feedback_checkbox.grid(row=4, column=1, columnspan=2, sticky="w")
 
         self.show_instruc_var = tk.BooleanVar(value=False)
         instruc_checkbox = tk.Checkbutton(self.window, text="Show Instruction", variable=self.show_instruc_var)
-        instruc_checkbox.grid(row=4, column=1, columnspan=2, sticky="w")
+        instruc_checkbox.grid(row=5, column=1, columnspan=2, sticky="w")
 
         self.deselect_var = tk.BooleanVar(value=False)
         deselect_checkbox = tk.Checkbutton(self.window, text="Enable Deselect", variable=self.deselect_var)
-        deselect_checkbox.grid(row=5, column=1, columnspan=2, sticky="w")
+        deselect_checkbox.grid(row=6, column=1, columnspan=2, sticky="w")
 
         self.mode_var = tk.StringVar(value="EEG/MEG")
         radio_ica = tk.Radiobutton(self.window, text="ICA", variable=self.mode_var, value="ICA")
-        radio_ica.grid(row=3, column=0, sticky="w")
+        radio_ica.grid(row=4, column=0, sticky="w")
         radio_eeg_meg = tk.Radiobutton(self.window, text="EEG/MEG", variable=self.mode_var, value="EEG/MEG")
-        radio_eeg_meg.grid(row=4, column=0, sticky="w")
+        radio_eeg_meg.grid(row=5, column=0, sticky="w")
 
         self.eeg_var = tk.BooleanVar(value=True)
         cb_eeg = tk.Checkbutton(self.window, text="EEG", variable=self.eeg_var)
-        cb_eeg.grid(row=6, column=0, sticky="w")
+        cb_eeg.grid(row=7, column=0, sticky="w")
 
         self.mag_var = tk.BooleanVar(value=True)
         cb_mag = tk.Checkbutton(self.window, text="Mag", variable=self.mag_var)
-        cb_mag.grid(row=6, column=1, sticky="w")
+        cb_mag.grid(row=7, column=1, sticky="w")
 
         self.grad_var = tk.BooleanVar(value=True)
         cb_grad = tk.Checkbutton(self.window, text="Grad", variable=self.grad_var)
-        cb_grad.grid(row=6, column=2, sticky="w")
+        cb_grad.grid(row=7, column=2, sticky="w")
 
         submit_button = tk.Button(self.window, text="Submit", command=self.on_submit)
-        submit_button.grid(row=7, column=0, columnspan=3)
+        submit_button.grid(row=8, column=0, columnspan=3)
 
     def create_label_entry(self, window, text, row):
         label = tk.Label(window, text=text)
@@ -110,10 +140,12 @@ class MEG_Chicken:
         if not session_number.isdigit():
             messagebox.showerror("Invalid Input", "Session number must be a number.")
             return
-        # if not experience_level.isdigit() or not (1 <= int(experience_level) <= 4):
-        #     messagebox.showerror("Invalid Input", "Experience level must be 1 ~ 4.")
-        #     return
-
+       
+        chosen_dataset = self.dataset_var.get().strip()
+        if not chosen_dataset:
+            messagebox.showerror("Invalid Input", "Please select a dataset from the dropdown.")
+            return
+       
         # Show instructions if needed
         if show_instruc:
             self.show_instructions()
@@ -134,8 +166,8 @@ class MEG_Chicken:
         # Run
         self.run_experiment(
             participant_number,
-            # experience_level,
             session_number,
+            dataset_name=chosen_dataset,
             feedback=feedback,
             mode_ica=mode_ica,
             deselect=deselect,
@@ -165,8 +197,8 @@ class MEG_Chicken:
 
     def run_experiment(self,
                        participant_number,
-                    #    experience_level,
                        session_number,
+                       dataset_name,
                        feedback=True,
                        n_trials=config.n_trials_per_session,
                        mode_ica=True,
@@ -219,14 +251,14 @@ class MEG_Chicken:
         if not os.path.exists(session_file_path):
             trials_list = []
             if mode_ica:
-                data_path = config.ica_dir
+                data_path = os.path.join("data", dataset_name, "ica")
                 all_files = run_funcs.collect_files(data_path, channel_types, '_ica.fif', 'ICA')
                 if all_files is None:
                     return
                 trials_list = run_funcs.process_trial_files(all_files, n_trials, 'ICA', data_path)
             
             else:
-                data_path = config.trials_dir
+                data_path = os.path.join("data", dataset_name, "trials")
                 all_files = run_funcs.collect_files(data_path, channel_types, '.pkl', 'MEEG')
                 if all_files is None:
                     return
@@ -277,7 +309,7 @@ class MEG_Chicken:
                 ica = mne.preprocessing.read_ica(trial_info["trial_path"])
 
                 raw_file_name = f"{subj}_{ses}_{run}_preprocessed_raw.fif"
-                raw_file_path = os.path.join(config.preprocessed_save_path, raw_file_name)
+                raw_file_path = os.path.join(os.path.join("data", dataset_name, "preprocessed"), raw_file_name)
                 if not os.path.exists(raw_file_path):
                     print(f"Cannot find {raw_file_path}. Skipping trial.")
                     continue

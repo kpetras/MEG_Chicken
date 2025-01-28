@@ -18,10 +18,17 @@ def main():
         "commands", 
         nargs="*", 
         help=(
-            "Commands: MEEG, MEG, EEG, MAG, GRAD, ICA, TRIAL(S), etc. (case-insensitive). "
-            "MEEG/MEG/EEG/MAG/GRAD define which channels to process, "
-            "'ICA' triggers ICA, 'TRIAL' triggers trial generation, "
+            "Commands: PRE/PREPROC/PREPROCESSING, MEEG, MEG, EEG, MAG, GRAD, ICA, TRIAL(S). "
+            "Any presence of PRE* triggers preprocessing, "
+            "ICA triggers ICA, TRIAL triggers trial generation, etc."
         )
+    )
+    # Dataset name (default=dataset1 if user doesn't supply anything)
+    parser.add_argument(
+        "--dataset-name",
+        type=str,
+        default="dataset1",
+        help="Name of the dataset folder under data/. (default='dataset1')"
     )
 
     # Common optional arguments
@@ -51,7 +58,7 @@ def main():
 
     args = parser.parse_args()
     commands_lower = [cmd.lower() for cmd in args.commands]
-
+    print(commands_lower)
     # Identify which channels to process
     channel_set = set()
     if 'meeg' in commands_lower:
@@ -65,8 +72,8 @@ def main():
     if 'eeg' in commands_lower:
         channel_set.add('eeg')
 
-    # If "ICA" alone → default to MEEG
-    if (len(channel_set) == 0) and ('ica' in commands_lower) and (len(commands_lower) == 1):
+    # If "ICA" alone, default to MEEG
+    if len(channel_set) == 0:
         print("No channel commands specified but ICA is present --> Default to MEEG channels [Mag, Grad, EEG].")
         channel_set.update(['mag', 'grad', 'eeg'])
     
@@ -76,21 +83,62 @@ def main():
         return
 
     channel_types_to_process = sorted(list(channel_set))
+    do_preprocessing = any(cmd in ["pre", "preproc", "preprocessing"] for cmd in commands_lower)
 
     do_ica = ('ica' in commands_lower)
     do_trial = args.do_trial or ('trial' in commands_lower) or ('trials' in commands_lower)
 
-    data_dir = config.data_dir
-    trials_dir = config.trials_dir
-    ica_dir = config.ica_dir
+    # If ICA but no PRE, ask to confirm
+    if do_ica and not do_preprocessing:
+        resp = input(
+            "You specified ICA but not PREPROCESSING. Proceed without preprocessing? [y/n]: "
+        ).strip().lower()
+        if resp not in ["y", "yes"]:
+            do_preprocessing = True  # run the whole process if user says no
+    
+    raw_dir = config.raw_dir
+    dataset_dir = os.path.join("data", args.dataset_name)  # hardcoding data because let's just don't change this please
+
+    if do_trial:
+        answer_dir = os.path.join("data", "answer") # hardcoding data/answer because let's just don't change this please
+        if not os.path.isdir(answer_dir):
+            print(f"[ERROR] No 'answer' directory found at {answer_dir}. Exiting.")
+            return
+        
+        # List possible JSON files
+        answer_candidates = [f for f in os.listdir(answer_dir) if f.endswith('.json')]
+        if not answer_candidates:
+            print(f"[ERROR] No .json files found in {answer_dir}. Exiting.")
+            return
+
+        print("\nAvailable answer JSON files in 'data/answer':")
+        for ansf in answer_candidates:
+            print(f"  - {ansf}")
+
+        chosen_file = None
+        while True:
+            user_input = input("\nType the EXACT answer file name (e.g. 'answer_standardized.json'): ").strip()
+            file_path = os.path.join(answer_dir, user_input)
+            if os.path.isfile(file_path):
+                # Confirm
+                conf = input(f"Use '{user_input}' as the answer file? [y/n]: ").strip().lower()
+                if conf in ['y', 'yes']:
+                    chosen_file = file_path
+                    break
+            else:
+                print(f"File '{user_input}' not found in {answer_dir}. Try again...")
+
+        answer_file = chosen_file
+    else:
+        answer_file = None
 
     # 1) Preprocess, generate trial files or ICAs if within command
     if channel_types_to_process:
         preprocess_and_make_trials(
-            data_dir=data_dir,
-            trials_dir=trials_dir,
-            ica_dir=ica_dir,
+            raw_dir=raw_dir,
+            dataset_dir=dataset_dir,
             channel_types=channel_types_to_process,
+            do_preprocessing = do_preprocessing,
             do_ica=do_ica,
             do_trial=do_trial,        
             l_freq=args.l_freq,
@@ -103,7 +151,8 @@ def main():
             min_bad_channels=args.min_bad_ch,
             n_components=args.n_components,
             ica_method=args.ica_method,
-            random_state=args.random_state
+            random_state=args.random_state,
+            answer_file = answer_file
         )
 
 if __name__ == "__main__":

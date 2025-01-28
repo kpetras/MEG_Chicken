@@ -1,12 +1,12 @@
 # config.py
 import os
 # Directories
-data_dir = os.path.join('data', 'raw')
-trials_dir = os.path.join('data', 'trials')
-ica_dir = os.path.join('data', 'ica')
-preprocessed_save_path = os.path.join('data', 'preprocessed')
+raw_dir = os.path.join('data', 'raw')
+# trials_dir = os.path.join('data', 'trials')
+# ica_dir = os.path.join('data', 'ica')
+# preprocessed_save_path = os.path.join('data', 'preprocessed')
 res_dir = os.path.join('data', 'results')
-sample_dir = os.path.join('data', 'sample')
+# sample_dir = os.path.join('data', 'sample')
 session_dir = os.path.join('data', 'session_data')
 answer_dir = os.path.join('data', 'answer')
 nest_dir = os.path.join('data', 'nest') # Where the chicken lay eggs. HA! Get it?
