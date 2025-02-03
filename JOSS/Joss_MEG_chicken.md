@@ -42,14 +42,14 @@ bibliography: references.bib
 
 Detecting and processing signal artifacts is crucial for analyzing neural time-series data from  magnetoencephalography (MEG) or electroencephalography (EEG) recordings [@luck_electroencephalography_2017]. While numerous automated and semi-automated artifact detection algorithms exist (e.g., [@jas_autoreject_2017]), visual inspection and manual labeling remain the most widely used methods for identifying components contaminated by eye movements, muscle activity, or electrical noise. Despite excellent resources describing common physiological and electrical artifacts in MEG and EEG data [@burgess_recognizing_2020;@uriguen_eeg_2015], decisions about segment or component rejection are ultimately subjective. This subjectivity often results in inconsistencies, particularly when training new lab members.
 
-Implicit or procedural learning refers to the acquisition of skills and knowledge through repeated exposure and practice, without explicit instruction. A well established example of implicit rule learning is chicken sexing, where workers learn to distinguish the sex of day-old chicks based on subtle visual cues. Despite often not being able to articulate which exact features distinguish between male and female chicks, experienced chicken sexers can classify chicks accurately and reliably through extensive experience and feedback [@horsey_art_nodate]. 
+Implicit or procedural learning refers to the acquisition of skills and knowledge through repeated exposure and practice, without explicit instruction. A well-established example of implicit rule learning is chicken sexing, where workers learn to distinguish the sex of days-old chicks based on subtle visual cues. Despite often not being able to articulate which exact features distinguish between male and female chicks, experienced chicken sexers can classify chicks accurately and reliably through extensive experience and feedback [@horsey_art_2002]. 
 
-`MEG Chicken` uses the principle of implicit learning through immediate feedback to streamline and standardize the process of learning to detect artifacts in electrophysiology data. The open source software tool presents trainees with data containing various types of artifacts and provides immediate feedback on their decisions, enabling consistent rejection criteria to be learned implicitly. 
-Labs can customize the training with their own annotated datasets to ensure alignment with lab-specific standards.
+`MEG Chicken` uses the principle of implicit learning to streamline and standardize the process of learning to detect artifacts in electrophysiology data. The open source software tool presents trainees with data containing various types of artifacts and provides immediate feedback on their decisions, enabling consistent rejection criteria to be learned implicitly. 
+Labs can customize the training with their own annotated datasets to ensure alignment with lab-specific standards. In a second step, annotated data can be made available to others to establish a reference library that facilitates the establishment of community standards.
 
 # Functionality
 
-`MEG Chicken` is built on the MNE-Python library and employs MNE's user-friendly graphical interface for visualizing time-series data and sensor topographies. The software includes labeled example datasets available for download via Zenodo, and labs can import or create their own labeled datasets through the interactive interface.
+`MEG Chicken` is built on the MNE-Python library [@gramfort_mne_2014] and employs MNE's user-friendly graphical interface for visualizing time-series data and sensor topographies. The software includes labeled example datasets available for download via Zenodo, and labs can import or create their own labeled datasets through the interactive interface.
 
 The training program includes modules for:
 
@@ -64,7 +64,8 @@ Immediate feedback after each decision supports implicit learning in the absense
 
 ### Evaluation and Performance
 
-Testing on 5 observes, naive to MEG and EEG artefacts, showed:
+Testing on 5 observers, naive to MEG and EEG artifacts, showed:
+
 - Participants required an average of `xx` minutes to achieve `xx%` accuracy in bad channel selection.
 - Participants required an average of `xx` minutes to achieve `xx%` accuracy in ICA component selection.
 - Performance remained consistent in follow-up tests conducted several days later.
@@ -102,4 +103,4 @@ We thank Laetitia Grabot for providing the example dataset, and Coline Haro for 
 - `playsound`
 - `copy`
 
-# References
+# References 
