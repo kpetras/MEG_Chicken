@@ -127,7 +127,6 @@ class MEG_Chicken:
     def on_submit(self):
         """ Validate input, optionally show instructions, then run the experiment. """
         participant_number = self.participant_number_entry.get()
-        # experience_level = self.experience_level_entry.get()
         session_number = self.session_number_entry.get()
         feedback = self.feedback_var.get()
         show_instruc = self.show_instruc_var.get()
@@ -160,6 +159,8 @@ class MEG_Chicken:
             selected_channel_types.append("grad")
         if not selected_channel_types:
             selected_channel_types = ["eeg", "mag", "grad"]
+        
+        selected_answer = self.answer_var.get()
 
         # Hide the participant info window
         self.window.withdraw()
@@ -171,7 +172,8 @@ class MEG_Chicken:
             feedback=feedback,
             mode_ica=mode_ica,
             deselect=deselect,
-            channel_types=selected_channel_types
+            channel_types=selected_channel_types,
+            answer_file = selected_answer
         )
 
     def show_instructions(self):
@@ -185,7 +187,7 @@ class MEG_Chicken:
         )
         instructions3 = (
             "You can select multiple channels/ICA-components or none.\n"
-            "Press TAB to validate your answer and proceed to the next trial. Good luck!"
+            "Close the trail wnidow to validate your answer and proceed to the next trial. Good luck!"
         )
         messagebox.showinfo("Instructions - Page 1", instructions1)
         messagebox.showinfo("Instructions - Page 2", instructions2)
@@ -199,6 +201,7 @@ class MEG_Chicken:
                        participant_number,
                        session_number,
                        dataset_name,
+                       answer_file,
                        feedback=True,
                        n_trials=config.n_trials_per_session,
                        mode_ica=True,
@@ -217,12 +220,13 @@ class MEG_Chicken:
         session_id = f"{participant_number}_{session_number}"
         session_dir = config.session_dir
         os.makedirs(session_dir, exist_ok=True)
-        session_file_path = os.path.join(session_dir, f"{session_id}_{'ICA' if mode_ica else 'MEEG'}.pkl")
-        
+        bag = "".join(sorted(set(ch[0] for ch in channel_types)))  # Extract initials, sort, and join
+        session_pickle = os.path.join(session_dir, f"{session_id}_{'ICA' if mode_ica else 'MEEG'}_{bag}.pkl")
+
         os.makedirs(config.res_dir, exist_ok=True)
         output_csv = os.path.join(
             config.res_dir,
-            f"results_{participant_number}_{session_number}_{'ICA' if mode_ica else 'MEEG'}_{'exp' if feedback else 'ctrl'}.csv"
+            f"results_{participant_number}_{session_number}_{'ICA' if mode_ica else 'MEEG'}_{'exp' if feedback else 'ctrl'}_{bag}.csv"
         )
 
         completed_trial_ids = set()
@@ -247,79 +251,81 @@ class MEG_Chicken:
                     if "Accuracy" in row:
                         self.trial_accuracies.append(row["Accuracy"])
 
-        # If no file exist for corresponding session id, we create one 
-        if not os.path.exists(session_file_path):
-            trials_list = []
-            if mode_ica:
-                data_path = os.path.join("data", dataset_name, "ica")
-                all_files = run_funcs.collect_files(data_path, channel_types, '_ica.fif', 'ICA')
-                if all_files is None:
-                    return
-                trials_list = run_funcs.process_trial_files(all_files, n_trials, 'ICA', data_path)
-            
-            else:
-                data_path = os.path.join("data", dataset_name, "trials")
-                all_files = run_funcs.collect_files(data_path, channel_types, '.pkl', 'MEEG')
-                if all_files is None:
-                    return
-                trials_list = run_funcs.process_trial_files(all_files, n_trials, 'MEEG', data_path)
-            
-            # Save session file
-            with open(session_file_path, "wb") as f_pkl:
-                pickle.dump(trials_list, f_pkl)
-            print(f"Session file created: {session_file_path}, total trials={len(trials_list)}")
+        if os.path.exists(session_pickle):
+            with open(session_pickle, "rb") as f:
+                all_trials = pickle.load(f)
         else:
-            # If exist, load
-            with open(session_file_path, "rb") as f_pkl:
-                trials_list = pickle.load(f_pkl)
-            print(f"Session file found. Total trials in session file: {len(trials_list)}")
+            if mode_ica:
+                # random .fif from data/<dataset>/ica/<ch_type>
+                all_files = run_funcs.load_ica_files(dataset_name, channel_types)
+            else:
+                # from the trials.db
+                all_files = run_funcs.load_all_meeg_trials(dataset_name, channel_types)
+            all_trials = run_funcs.pick_random_trials(all_files, n_trials)
 
-        # 4) Filter out the completed trials
-        remaining_trials = [t for t in trials_list if t["Trial"] not in completed_trial_ids]
+            with open(session_pickle, "wb") as f:
+                pickle.dump(all_trials, f)
+
+        remaining_trials = []
+        print("completed_trial_ids", completed_trial_ids)
+        for t in all_trials:
+            unique_id = t.get("trial_id", str(t))
+            print("unique_id", unique_id)
+            if unique_id not in completed_trial_ids:
+                remaining_trials.append(t)
+
+        if not remaining_trials:
+            messagebox.showinfo("Done", "All trials in this session are completed!")
+            self._close_all_windows()
+            return
+        
+
         print("num remaining_trials", len(remaining_trials))
         print("completed_trial_ids", completed_trial_ids)
-        if len(remaining_trials) == 0:
-            messagebox.showinfo("All Trials Done", "All trials have been completed for this session!")
-            self._close_all_windows() 
-            return        
                 
         # Initialize the always-open trial result window to show default instruction
         self.trial_result_window = TrialResultWindow(master=self.window)
         self.open_windows.append(self.trial_result_window.master)
 
+
         for trial_idx, trial_info in enumerate(remaining_trials, start= len(completed_trial_ids) + 1):
             print(trial_idx)
+            print(trial_info)
             if self.user_wants_to_quit:
                 break
+
+            subj     = trial_info.get("subj", "unknown")
+            ses      = trial_info.get("ses",  "unknown")
+            run      = trial_info.get("run",  "unknown")
+            ch_type  = trial_info.get("ch_type", "eeg")
+
+            fif_path = os.path.join("data", dataset_name, "core_data",
+                        f"{subj}_{ses}_{run}_preproc_raw.fif")
+            if not os.path.exists(fif_path):
+                print(f"[ERROR] Could not find .fif file: {fif_path}")
+                return None
+            raw_data = mne.io.read_raw_fif(fif_path, preload=False, allow_maxshield=True)
+            if raw_data is None:
+                print("[ERROR] Could not load trial data.")
+                continue
 
             if trial_info["mode"] == "ICA":
             # =======================================================
             #                    ICA mode 
             # =======================================================
-                ch_type = trial_info["ch_type"]
-                ica_filename = os.path.basename(trial_info["trial_path"])
-                print(f"[ICA] Trial {trial_idx}/{config.n_trials_per_session} => {ica_filename} (ch={ch_type})")
+                ica_path = trial_info.get("ica_path", None)
 
-                name_split = ica_filename.split('_')
-                try:
-                    subj, ses, run = name_split[0], name_split[1], name_split[2]
-                except IndexError:
-                    subj, ses, run = "unknown_subj", "unknown_ses", "unknown_run"
-
-                ica = mne.preprocessing.read_ica(trial_info["trial_path"])
-
-                raw_file_name = f"{subj}_{ses}_{run}_preprocessed_raw.fif"
-                raw_file_path = os.path.join(os.path.join("data", dataset_name, "preprocessed"), raw_file_name)
-                if not os.path.exists(raw_file_path):
-                    print(f"Cannot find {raw_file_path}. Skipping trial.")
+                if not ica_path or (not os.path.exists(ica_path)):
+                    print(f"[ERROR] ICA file not found {ica_path}")
                     continue
-                raw_preprocessed = mne.io.read_raw_fif(raw_file_path, preload=True, allow_maxshield=True)
 
+                print(f"[ICA] Trial {trial_idx}/{config.n_trials_per_session} => {fif_path} (ch={ch_type})")
+
+                ica = mne.preprocessing.read_ica(ica_path)
                 # Answers
                 ica_remove = {}
                 answer_dir = config.answer_dir
-                answer_data_file = 'answer_standardized.json'
-                answer_data_path = os.path.join(answer_dir, answer_data_file)
+                answer_data_path = os.path.join(answer_dir, answer_file)
                 if os.path.exists(answer_data_path):
                     with open(answer_data_path, 'r') as file:
                         answer_data = json.load(file)
@@ -335,7 +341,7 @@ class MEG_Chicken:
                     ICA_remove_inds_list=bad_components,
                     feedback=feedback,
                     deselect=deselect,
-                    inst=raw_preprocessed,
+                    inst=raw_data,
                     nrows=5,
                     ncols=10,
                     master=self.window,
@@ -357,20 +363,21 @@ class MEG_Chicken:
                     selected_comps.update(ica.exclude)
                     hits = len(set(bad_components) & selected_comps)
                     false_alarms = len(selected_comps - set(bad_components))
-                    misses = len(set(bad_components) - selected_comps)
+                    missed_channels = set(bad_components) - selected_comps
+                    misses = len(missed_channels)
                     n_components = config.ica_components
                     correct_rejections = n_components - len(set(bad_components) | selected_comps)
 
                     denom = hits + false_alarms + misses + correct_rejections
                     accuracy = (hits + correct_rejections) / denom if denom > 0 else 0
-
                     summary_window = TrialEndWindow(
                     master=self.window,
                     trial_idx=trial_idx,
                     hits=hits,
                     false_alarms=false_alarms,
                     misses=misses,
-                    correct_rejections=correct_rejections
+                    correct_rejections=correct_rejections,
+                    missed_channels = missed_channels
                     )
                     if summary_window.user_wants_quit:
                         self.user_wants_to_quit = True
@@ -389,7 +396,8 @@ class MEG_Chicken:
                         'FalseAlarms': false_alarms,
                         'Misses': misses,
                         'CorrectRejections': correct_rejections,
-                        'Accuracy': accuracy
+                        'Accuracy': accuracy,
+                        'D-Prime': run_funcs.compute_dprime(hits, false_alarms, misses, correct_rejections)
                     }
                     self._append_result_to_csv(row_dict, output_csv)
 
@@ -401,18 +409,16 @@ class MEG_Chicken:
                 # ===================================================================
                 #                        MEEG mode 
                 # ===================================================================
-                file_path = trial_info["trial_path"]
-                print(file_path)
-                with open(file_path, 'rb') as f:
-                    tdict = pickle.load(f)
-                trial_data = tdict["data"]
-                bad_channels_in_display = tdict["bad_chans_in_display"]
-                channel_type = tdict.get("channel_type", "Unknown")
+                chs2display = trial_info.get("chs2display", [])
+                bad_channels_in_display = trial_info.get("bad_channels", [])
+                channel_type = trial_info.get("ch_type", "eeg")
 
-                n_channels = trial_data.info['nchan']
+                n_channels = len(chs2display)
                 selected_channels = set()
-
-                print(f"[EEG/MEG] Trial {trial_idx}/{config.n_trials_per_session} => {os.path.basename(file_path)}")
+                trial_data = raw_data.copy().pick(chs2display)
+                print(f"[EEG/MEG] Trial {trial_idx}/{config.n_trials_per_session} => {fif_path} (ch={ch_type})")
+                print(f'{subj}_{ses}_{run}, {channel_type}')
+                print(bad_channels_in_display)
                 trial_start_time = time.time()
 
                 def on_pick(event):
@@ -435,25 +441,25 @@ class MEG_Chicken:
 
                 def end_trial():
                     fig.canvas.mpl_disconnect(cid_pick)
-                    fig.canvas.mpl_disconnect(cid_key)
                     fig.canvas.mpl_disconnect(cid_close)
                     plt.close(fig)
 
                     hits = len(set(bad_channels_in_display) & selected_channels)
                     false_alarms = len(selected_channels - set(bad_channels_in_display))
-                    misses = len(set(bad_channels_in_display) - selected_channels)
+                    missed_channels = set(bad_channels_in_display) - selected_channels
+                    misses = len(missed_channels)
                     correct_rejections = n_channels - len(selected_channels | set(bad_channels_in_display))
 
                     denom = hits + false_alarms + misses + correct_rejections
                     accuracy = (hits + correct_rejections) / denom if denom > 0 else 0
-
                     summary_window = TrialEndWindow(
                     master=self.window,
                     trial_idx=trial_idx,
                     hits=hits,
                     false_alarms=false_alarms,
                     misses=misses,
-                    correct_rejections=correct_rejections
+                    correct_rejections=correct_rejections,
+                    missed_channels = missed_channels
                     )
                     if summary_window.user_wants_quit:
                         self.user_wants_to_quit = True
@@ -472,25 +478,23 @@ class MEG_Chicken:
                         'FalseAlarms': false_alarms,
                         'Misses': misses,
                         'CorrectRejections': correct_rejections,
-                        'Accuracy': accuracy
+                        'Accuracy': accuracy,
+                        'D-Prime': run_funcs.compute_dprime(hits, false_alarms, misses, correct_rejections)
                     }
                     self._append_result_to_csv(row_dict, output_csv)
-
-                def on_key(event):
-                    if event.key == 'tab':
-                        end_trial()
 
                 def on_close(event):
                     end_trial()
 
+                print(chs2display)
                 fig = trial_data.plot(
                     n_channels=n_channels,
                     duration=2,
                     block=False,
+                    picks = chs2display,
                     title=f"Trial {trial_idx} - {channel_type}"
                 )
                 cid_pick = fig.canvas.mpl_connect('pick_event', on_pick)
-                cid_key = fig.canvas.mpl_connect('key_press_event', on_key)
                 cid_close = fig.canvas.mpl_connect('close_event', on_close)
 
                 plt.show(block=True)
@@ -514,7 +518,7 @@ class MEG_Chicken:
             'Trial', 'StartTime_s', 'EndTime_s', 'ChannelType',
             'SelectedChannels', 'BadChannels',
             'Hits', 'FalseAlarms', 'Misses', 'CorrectRejections',
-            'Accuracy'
+            'Accuracy', 'D-Prime'
         ]
         file_existed = os.path.exists(csv_path)
         with open(csv_path, 'a', newline='') as csvfile:
@@ -569,11 +573,11 @@ class MEG_Chicken:
             cr = data['cr']
             denom = hits + fa + misses + cr
             accuracy = (hits + cr) / denom if denom > 0 else 0
-            dprime_val = run_funcs.compute_dprime(hits, fa, misses, cr)
+            dprime = run_funcs.compute_dprime(hits, fa, misses, cr)
             lines.append(
                 f"Type={ctype}, Trials={data['count']} => "
                 f"Hits={hits}, FA={fa}, Misses={misses}, CR={cr}, "
-                f"Acc={accuracy*100:.1f}%, d'={dprime_val:.3f}"
+                f"Acc={accuracy*100:.1f}%, d'={dprime:.3f}"
             )
 
         summary_label = tk.Label(report_window, text="\n".join(lines), bg="white", justify="left")

@@ -12,7 +12,7 @@ answer_dir = os.path.join('data', 'answer')
 nest_dir = os.path.join('data', 'nest') # Where the chicken lay eggs. HA! Get it?
 
 # Experiment setups
-n_trials_per_session = 5
+n_trials_per_session = 100
 
 # ICA settings
 ica_components = 50 

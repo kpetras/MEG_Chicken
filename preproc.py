@@ -4,7 +4,8 @@ import os
 import argparse
 import config
 from preproc_funcs import (
-    preprocess_and_make_trials
+    preprocess_and_make_trials,
+    get_unique_path
 )
 
 def main():
@@ -20,14 +21,15 @@ def main():
         help=(
             "Commands: PRE/PREPROC/PREPROCESSING, MEEG, MEG, EEG, MAG, GRAD, ICA, TRIAL(S). "
             "Any presence of PRE* triggers preprocessing, "
-            "ICA triggers ICA, TRIAL triggers trial generation, etc."
+            "ICA triggers ICA, TRIAL triggers trial generation,"
+              "PRE/PREPROC/PREPROCESSING trigger preprocessing."
         )
     )
     # Dataset name (default=dataset1 if user doesn't supply anything)
     parser.add_argument(
         "--dataset-name",
         type=str,
-        default="dataset1",
+        default="dataset",
         help="Name of the dataset folder under data/. (default='dataset1')"
     )
 
@@ -79,8 +81,10 @@ def main():
     
     # If no commands at all, just exit
     if not commands_lower:
-        print("No commands provided. Exiting. Possible commands: MEEG, MEG, EEG, MAG, GRAD, ICA, TRIAL, SAMPLE, etc.")
-        return
+            print("Commands: PRE/PREPROC/PREPROCESSING, MEEG, MEG, EEG, MAG, GRAD, ICA, TRIAL(S). \n"
+            "Any presence of PRE* triggers preprocessing, \n"
+            "ICA triggers ICA, TRIAL triggers trial generation,\n")
+            return
 
     channel_types_to_process = sorted(list(channel_set))
     do_preprocessing = any(cmd in ["pre", "preproc", "preprocessing"] for cmd in commands_lower)
@@ -97,7 +101,8 @@ def main():
             do_preprocessing = True  # run the whole process if user says no
     
     raw_dir = config.raw_dir
-    dataset_dir = os.path.join("data", args.dataset_name)  # hardcoding data because let's just don't change this please
+    dataset_dir = get_unique_path("data", args.dataset_name)
+    # dataset_dir = os.path.join("data", args.dataset_name)  # hardcoding data because let's just don't change this please
 
     if do_trial:
         answer_dir = os.path.join("data", "answer") # hardcoding data/answer because let's just don't change this please

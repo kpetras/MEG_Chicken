@@ -4,6 +4,7 @@ from matplotlib.figure import Figure
 from PIL import Image, ImageTk
 from playsound import playsound
 import os
+from run_funcs import compute_dprime
 
 class FeedbackWindow:
     """
@@ -114,7 +115,6 @@ class TrialResultWindow:
         self.ax.set_ylim(0, 1.05)
         self.canvas.draw()
 
-import tkinter as tk
 
 class TrialEndWindow:
     """
@@ -124,7 +124,7 @@ class TrialEndWindow:
     2) Save and quit
     """
 
-    def __init__(self, master, trial_idx, hits, false_alarms, misses, correct_rejections):
+    def __init__(self, master, trial_idx, hits, false_alarms, misses, correct_rejections, missed_channels):
         self.master = master
         
         self.top = tk.Toplevel(self.master)
@@ -136,7 +136,12 @@ class TrialEndWindow:
 
         denom = hits + false_alarms + misses + correct_rejections
         accuracy = (hits + correct_rejections) / denom if denom > 0 else 0
-        accuracy_percent = f"{accuracy*100:.1f}%"
+        dprime = compute_dprime(hits, false_alarms, misses, correct_rejections)
+        
+        if not missed_channels:
+            missed_bads = "Missed Bads: None\n"
+        else:
+            missed_bads = "Missed Bads:\n" + "\n".join(str(ch) for ch in missed_channels) + "\n"
 
         info_text = (
             f"Trial {trial_idx} ended!\n\n"
@@ -144,7 +149,10 @@ class TrialEndWindow:
             f"False Alarms: {false_alarms}\n"
             f"Misses: {misses}\n"
             f"Correct Rejections: {correct_rejections}\n"
-            f"Accuracy: {accuracy_percent}\n"
+            f"Accuracy: {accuracy*100:.1f}\n"
+            f"D-Prime: {dprime:.3f}\n"
+            "\n"
+            f"{missed_bads}"
         )
 
         self.label_info = tk.Label(self.top, text=info_text, font=("Arial", 14), justify="left")
