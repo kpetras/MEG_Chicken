@@ -241,7 +241,8 @@ def pick_ica_components(bad_dict, data_dir, n_components=config.ica_components, 
             # bad_dict["ICA_remove_inds"][subj][ses][run][ch_type] = [excluded comps]
             ica_inds_dict = bad_dict["ICA_remove_inds"]
             ensure_hierarchy(ica_inds_dict, subj, ses, run, if_ica = True)
-            ica_inds_dict[subj][ses][run][ch_type] = excluded_comps
+            bad_dict["ICA_remove_inds"][subj][ses][run][ch_type] = excluded_comps
+    return bad_dict
 
 def main():
     parser = argparse.ArgumentParser(
@@ -277,7 +278,7 @@ def main():
     # If ICA
     if "ica" in cmds:
         print("[INFO] ICA mode: opening raw files for picking components.")
-        pick_ica_components(bad_dict_new, data_dir=config.nest_dir)
+        bad_dict_new = pick_ica_components(bad_dict_new, data_dir=config.nest_dir)
 
     # If nothing, do nothing
     if not cmds:
