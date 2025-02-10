@@ -8,11 +8,10 @@ data/
 ├── raw/                        
 │   └── *.fif                     # Original raw data files (in FIF format) that remain unaltered 
 ├── dataset1/                   
-│   ├── core_data/              
-│   │   ├── preprocessed_channels/  
-│   │   │   └── subj_ses_run/     # (No longer used in this version, but retained if needed.)
+│   ├── core_data/
+│   │   ├── *.fif # Preprocessed fif files         
 │   │   └── index_db/            
-│   │       └── channel_index.db  
+│   │       └── trials.db  
 │   ├── ica/                    
 │   │   └── {channel_type}/       
 │   │       └── *.fif              
@@ -30,7 +29,6 @@ import json
 import random
 import pickle
 import sqlite3
-import numpy as np
 from tqdm import tqdm
 import config
 
@@ -206,7 +204,6 @@ def preprocess_and_make_trials(
 ):
     
     ica_dir = os.path.join(dataset_dir, 'ica')
-    trials_dir = os.path.join(dataset_dir, 'trials')
 
     # Initialize core storage
     core_path = _init_core_storage(dataset_dir)
@@ -273,10 +270,6 @@ def preprocess_and_make_trials(
         # -------------------------
         _save_preprocessed_raw_fif(raw, core_path, subj, ses, run) # whatever you were, you are fif now
 
-        # channel_index_info = _save_preprocessed_channels(raw, core_path, subj, ses, run)
-        # _save_channel_index_json(core_path, subj, ses, run, channel_index_info)
-        # _insert_channel_index(core_path, subj, ses, run, channel_index_info)
-
         # -------------------------
         # 3) ICA (optional)
         # -------------------------
@@ -327,7 +320,6 @@ def preprocess_and_make_trials(
                                 max_bad_channels=max_bad_channels,
                                 min_bad_channels=min_bad_channels
                             )
-                            all_chs = raw.info['ch_names']
 
                             if chs_to_display is None:
                                 print(f"[WARNING] Skipping trial for {subj}_{ses}_{run}_{ch_type} (not enough bad channels).")

@@ -334,6 +334,9 @@ class MEG_Chicken:
                 if (subj in ica_remove) and (ses in ica_remove[subj]) and (run in ica_remove[subj][ses]) and (ch_type in ica_remove[subj][ses][run]):
                     bad_components = ica_remove[subj][ses][run][ch_type]
                 
+                if len(bad_components) == 0: 
+                    print(f"[ERROR] ICA file's answer length is lower than {config.min_bad_ch}, skipping")
+                    continue
                 print(bad_components)
 
                 fig = custome_ica_plot(
