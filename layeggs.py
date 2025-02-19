@@ -147,15 +147,15 @@ def read_meeg_bad_channels(bad_dict, data_dir):
             elif ch_name.startswith("MEG"):
                 meg_bads.append(ch_name)
 
-        if eeg_bads:
-            badE = bad_dict["badC_EEG"]
-            badE = ensure_hierarchy(badE, subj, ses, run, if_ica = False)
-            bad_dict["badC_EEG"][subj][ses][run].extend(eeg_bads)
+        # if eeg_bads: create the structure even if there's no bads
+        badE = bad_dict["badC_EEG"]
+        badE = ensure_hierarchy(badE, subj, ses, run, if_ica = False)
+        bad_dict["badC_EEG"][subj][ses][run].extend(eeg_bads)
 
-        if meg_bads:
-            badM = bad_dict["badC_MEG"]
-            badM = ensure_hierarchy(badM, subj, ses, run, if_ica =False)
-            bad_dict["badC_MEG"][subj][ses][run].extend(meg_bads)
+        # if meg_bads: create the structure even if there's no bads
+        badM = bad_dict["badC_MEG"]
+        badM = ensure_hierarchy(badM, subj, ses, run, if_ica =False)
+        bad_dict["badC_MEG"][subj][ses][run].extend(meg_bads)
 
     return bad_dict
 
@@ -229,6 +229,7 @@ def pick_ica_components(bad_dict, data_dir, n_components=config.ica_components, 
 
             title_str = f"{subj}_{ses}_{run}_{ch_type} - close window to finalize"
             ica.plot_components(title=title_str, 
+                                isinst = raw,
                                 nrows = 5,
                                 ncols = 10,
                                 show=False)
@@ -241,8 +242,7 @@ def pick_ica_components(bad_dict, data_dir, n_components=config.ica_components, 
             # bad_dict["ICA_remove_inds"][subj][ses][run][ch_type] = [excluded comps]
             ica_inds_dict = bad_dict["ICA_remove_inds"]
             ensure_hierarchy(ica_inds_dict, subj, ses, run, if_ica = True)
-            bad_dict["ICA_remove_inds"][subj][ses][run][ch_type] = excluded_comps
-    return bad_dict
+            ica_inds_dict[subj][ses][run][ch_type] = excluded_comps
 
 def main():
     parser = argparse.ArgumentParser(
@@ -278,7 +278,7 @@ def main():
     # If ICA
     if "ica" in cmds:
         print("[INFO] ICA mode: opening raw files for picking components.")
-        bad_dict_new = pick_ica_components(bad_dict_new, data_dir=config.nest_dir)
+        pick_ica_components(bad_dict_new, data_dir=config.nest_dir)
 
     # If nothing, do nothing
     if not cmds:
@@ -316,8 +316,7 @@ def main():
 
     with open(output_json_path, 'w', encoding='utf-8') as jf:
         json.dump(bad_dict_new, jf, indent=2, ensure_ascii=False)
-
-    print(f"[DONE] Output JSON saved to: {output_json_path}")
+        print(f"[DONE] Output JSON saved to: {output_json_path}")
 
 
 if __name__ == "__main__":
