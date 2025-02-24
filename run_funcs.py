@@ -3,10 +3,10 @@ import os
 import random
 from tkinter import messagebox
 import json
-import numpy as np
 import mne
 import sqlite3
 import pickle
+import config
 # -----------------------------------------
 #           Everything Calculation
 # -----------------------------------------
@@ -16,28 +16,35 @@ def compute_dprime(hits, false_alarms, misses, correct_rejections):
     
     D-prime = Z(HR) - Z(FAR)
     Where:
-    HR = hits / (hits + misses)
-    FAR = false_alarms / (false_alarms + correct_rejections)
+    hit rate (HR) = hits / (hits + misses)
+    false alarm rate (FAR) = false_alarms / (false_alarms + correct_rejections)
+
+    However, here we used the adjusted hit rate and false alarm rate (Hautus, 1995)(Stanislaw & Todorov, 1999)
+    with  hit rate adjusted = (hits + 0.5)/(hits + misses + 1)
+    and   false alarm rate adjusted = (false_alarms + 0.5) / (false_alarms + correct_rejections + 1)
     """
     total_signal = hits + misses # Pos
+    print("total_signal", total_signal)
     total_noise  = false_alarms + correct_rejections # Negs
-
-    if hits == 0: hits = 1
-    if false_alarms == 0: false_alarms = 1
-    if hits == total_signal: hits = hits - 1
-    if false_alarms == total_noise: false_alarms = false_alarms - 1
-
-    if total_signal == 0 or total_noise == 0:
-        return 0.0
-
+    print("total_noise", total_noise)
   
-    pHit = hits / total_signal 
-    pFA  = false_alarms / total_noise 
+    pHit_adj = (hits + 0.5) / (total_signal + 1)
+    pFA_adj  = (false_alarms + 0.5)/ (total_noise + 1)
+
+    print("hit", hits)
+    print("miss", misses)
+    print("false_alarms", false_alarms)
+    print("correct_rejections", correct_rejections)
+
+    print("pHit", pHit_adj)
+    print("pFA", pFA_adj)
 
     # Convert to Z scores, no error checking
-    zHit = norm.ppf(pHit)
-    zFA = norm.ppf(pFA)
+    zHit = norm.ppf(pHit_adj)
+    zFA = norm.ppf(pFA_adj)
 
+    print("zHit", zHit)
+    print("zFA", zFA)
     dprime = zHit - zFA
 
     # crit = (zHit + zFA) / -2
@@ -61,7 +68,7 @@ def scan_directories(scan_answers=False):
     
     else:
         data_root = "data"
-        excluded_dirs = {"raw", "answer", "session_data", "results"}
+        excluded_dirs = config.exclude_dirs
         try:
             all_items = os.listdir(data_root)
         except FileNotFoundError:
