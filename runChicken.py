@@ -1,0 +1,712 @@
+# runChicken.py
+import os
+import time
+import json
+import mne
+import tkinter as tk
+from tkinter import messagebox, ttk, PhotoImage
+import pickle
+import csv
+import matplotlib
+import matplotlib.pyplot as plt
+import warnings
+import config
+import code.run_funcs as run_funcs
+from code.ica_plot import custome_ica_plot
+from code.FeedbackWindow import FeedbackWindow, TrialEndWindow
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
+# ============ MNE Matplotlib settings ============
+mne.viz.set_browser_backend('matplotlib')
+matplotlib.use('tkagg')
+
+warnings.filterwarnings(
+    'ignore',
+    message='Projection vector.*has been reduced to',
+    category=RuntimeWarning
+)
+
+try:
+    from slides.slides import display_slides
+except ImportError:
+    def display_slides(*args, **kwargs):
+        pass
+
+class MEG_Chicken:
+    def __init__(self):
+        """ The main window for collecting participant info. """   
+        self.window = tk.Tk()
+        self.window.title("Participant Information")
+
+        self.open_windows = [] # To register the opened windows so that we can actually close them all...
+        self.results = []  # store trial-wise dict
+        self.trial_accuracies = []
+
+        # Flag for user decision to Save & Quit mid-experiment
+        self.user_wants_to_quit = False
+
+        # for overall timing, not sure if im using this since we now have save and quit
+        self.global_start_time = None 
+
+        # Participant Info Rows
+        self.participant_number_entry = self.create_label_entry(self.window, "Participant Number:", 0)
+        self.session_number_entry = self.create_label_entry(self.window, "Session Number:", 1) 
+        
+        # Dataset Selection
+        dataset_label = tk.Label(self.window, text="Select Dataset:")
+        dataset_label.grid(row=2, column=0, sticky="e")
+        self.dataset_var = tk.StringVar()
+        dataset_choices = run_funcs.scan_directories(scan_answers=False)
+        self.dataset_cb = ttk.Combobox(self.window, textvariable=self.dataset_var, values=dataset_choices, state="readonly")
+        self.dataset_cb.grid(row=2, column=1, padx=5, pady=5, sticky="w")
+
+        # If any datasets found, select the first by default
+        if dataset_choices:
+            self.dataset_cb.current(0)
+        else:
+            # If no dataset folders found, disable the combobox and warn the user
+            self.dataset_cb.configure(state='disabled')
+            messagebox.showwarning("No Datasets Found", "No dataset subfolders found in 'data/'.")
+        
+        # Answer Selection
+        answer_label = tk.Label(self.window, text="Select Answer:")
+        answer_label.grid(row=3, column=0, sticky="e")
+        self.answer_var = tk.StringVar()
+        answer_choices = run_funcs.scan_directories(scan_answers=True)
+        self.answer_cb = ttk.Combobox(self.window, textvariable=self.answer_var, values=answer_choices, state="readonly")
+        self.answer_cb.grid(row=3, column=1, padx=5, pady=5, sticky="w")
+
+        # If any datasets found, select the first by default
+        if answer_choices:
+            self.dataset_cb.current(0)
+        else:
+            # If no dataset folders found, disable the combobox and warn the user
+            self.dataset_cb.configure(state='disabled')
+            messagebox.showwarning("No Answer File Found", "No json file found in 'data/answer'.")
+
+        self.feedback_var = tk.BooleanVar(value=False)
+        feedback_checkbox = tk.Checkbutton(self.window, text="Enable Immediate Feedback", variable=self.feedback_var)
+        feedback_checkbox.grid(row=4, column=1, columnspan=2, sticky="w")
+
+        self.show_instruc_var = tk.BooleanVar(value=False)
+        instruc_checkbox = tk.Checkbutton(self.window, text="Show Instruction", variable=self.show_instruc_var)
+        instruc_checkbox.grid(row=5, column=1, columnspan=2, sticky="w")
+
+        self.deselect_var = tk.BooleanVar(value=False)
+        deselect_checkbox = tk.Checkbutton(self.window, text="Enable Deselect", variable=self.deselect_var)
+        deselect_checkbox.grid(row=6, column=1, columnspan=2, sticky="w")
+
+        self.mode_var = tk.StringVar(value="EEG/MEG")
+        radio_ica = tk.Radiobutton(self.window, text="ICA", variable=self.mode_var, value="ICA")
+        radio_ica.grid(row=4, column=0, sticky="w")
+        radio_eeg_meg = tk.Radiobutton(self.window, text="EEG/MEG", variable=self.mode_var, value="EEG/MEG")
+        radio_eeg_meg.grid(row=5, column=0, sticky="w")
+
+        self.eeg_var = tk.BooleanVar(value=True)
+        cb_eeg = tk.Checkbutton(self.window, text="EEG", variable=self.eeg_var)
+        cb_eeg.grid(row=7, column=0, sticky="w")
+
+        self.mag_var = tk.BooleanVar(value=True)
+        cb_mag = tk.Checkbutton(self.window, text="Mag", variable=self.mag_var)
+        cb_mag.grid(row=7, column=1, sticky="w")
+
+        self.grad_var = tk.BooleanVar(value=True)
+        cb_grad = tk.Checkbutton(self.window, text="Grad", variable=self.grad_var)
+        cb_grad.grid(row=7, column=2, sticky="w")
+
+        submit_button = tk.Button(self.window, text="Submit", command=self.on_submit)
+        submit_button.grid(row=8, column=0, columnspan=3)
+
+    def create_label_entry(self, window, text, row):
+        label = tk.Label(window, text=text)
+        label.grid(row=row, column=0)
+        entry = tk.Entry(window)
+        entry.grid(row=row, column=1)
+        return entry
+
+    def on_submit(self):
+        """ Validate input, optionally show instructions, then run the experiment. """
+        participant_number = self.participant_number_entry.get()
+        session_number = self.session_number_entry.get()
+        feedback = self.feedback_var.get()
+        show_instruc = self.show_instruc_var.get()
+        deselect = self.deselect_var.get()
+        mode_ica = (self.mode_var.get() == "ICA")
+
+        if not participant_number.isdigit():
+            messagebox.showerror("Invalid Input", "Participant number must be a number.")
+            return
+        if not session_number.isdigit():
+            messagebox.showerror("Invalid Input", "Session number must be a number.")
+            return
+       
+        chosen_dataset = self.dataset_var.get().strip()
+        if not chosen_dataset:
+            messagebox.showerror("Invalid Input", "Please select a dataset from the dropdown.")
+            return
+       
+        # Show instructions if needed
+        if show_instruc:
+            self.show_instructions()
+
+        # Collect chosen channel types
+        selected_channel_types = []
+        if self.eeg_var.get():
+            selected_channel_types.append("eeg")
+        if self.mag_var.get():
+            selected_channel_types.append("mag")
+        if self.grad_var.get():
+            selected_channel_types.append("grad")
+        if not selected_channel_types:
+            selected_channel_types = ["eeg", "mag", "grad"]
+        
+        selected_answer = self.answer_var.get()
+
+        # Hide the participant info window
+        self.window.withdraw()
+        # Run
+        self.run_experiment(
+            participant_number,
+            session_number,
+            dataset_name=chosen_dataset,
+            feedback=feedback,
+            mode_ica=mode_ica,
+            deselect=deselect,
+            channel_types=selected_channel_types,
+            answer_file = selected_answer
+        )
+
+    def show_instructions(self):
+        instructions1 = (
+            "Welcome to this EEG/MEG data classification experiment!\n"
+            "Some slides might be displayed here to teach you how to recognize artifacts."
+        )
+        instructions2 = (
+            "Then, raw EEG/MEG signals or ICA components will be displayed.\n"
+            "If you think they are contaminated by artifacts, you can click on them."
+        )
+        instructions3 = (
+            "You can select multiple channels/ICA-components or none.\n"
+            "Close the trail wnidow to validate your answer and proceed to the next trial. Good luck!"
+        )
+        messagebox.showinfo("Instructions - Page 1", instructions1)
+        messagebox.showinfo("Instructions - Page 2", instructions2)
+        messagebox.showinfo("Instructions - Page 3", instructions3)
+
+        slide_folder = 'slides'
+        if os.path.exists(slide_folder):
+            display_slides(slide_folder, master=self.window)
+
+    def run_experiment(self,
+                       participant_number,
+                       session_number,
+                       dataset_name,
+                       answer_file,
+                       feedback=True,
+                       n_trials=config.n_trials_per_session,
+                       mode_ica=True,
+                       deselect=False,
+                       channel_types=None):
+        """
+        Output: 
+        1. trial results in CSV.
+        2. Experiment response time in CSV
+        3. Run the rest of the trial if session is created but not completed
+        4. Allowing to Save and Quit mid-session and resume next time
+        """
+        if channel_types is None:
+            print("[INFO] You have not chosen any channel type, proceed with MEEG")
+            channel_types = ["eeg", "mag", "grad"]
+
+        session_id = f"{participant_number}_{session_number}"
+        session_dir = config.session_dir
+        os.makedirs(session_dir, exist_ok=True)
+        bag = "".join(sorted(set(ch[0] for ch in channel_types)))  # Extract initials, sort, and join
+        session_pickle = os.path.join(session_dir, f"{session_id}_{'ICA' if mode_ica else 'MEEG'}_{bag}.pkl")
+
+        os.makedirs(config.res_dir, exist_ok=True)
+        output_csv = os.path.join(
+            config.res_dir,
+            f"results_{participant_number}_{session_number}_{'ICA' if mode_ica else 'MEEG'}_{'exp' if feedback else 'ctrl'}_{bag}.csv"
+        )
+
+        completed_trial_ids = set()
+        if os.path.exists(output_csv):
+            with open(output_csv, "r", newline="") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    try:
+                        row["Trial"] = int(row["Trial"])
+                    except ValueError:
+                        continue
+                    for num_field in ["Hits","FalseAlarms","Misses","CorrectRejections"]:
+                        if num_field in row:
+                            row[num_field] = int(row[num_field])
+                    for float_field in ["StartTime_s","EndTime_s","Accuracy"]:
+                        if float_field in row:
+                            row[float_field] = float(row[float_field])
+
+                    completed_trial_ids.add(row["Trial"])                    
+                    # Store the row in self.results
+                    self.results.append(row)
+                    if "Accuracy" in row:
+                        self.trial_accuracies.append(row["Accuracy"])
+
+        if os.path.exists(session_pickle):
+            with open(session_pickle, "rb") as f:
+                all_trials = pickle.load(f)
+        else:
+            if mode_ica:
+                # random .fif from data/<dataset>/ica/<ch_type>
+                all_files = run_funcs.load_ica_files(dataset_name, channel_types)
+            else:
+                # from the trials.db
+                all_files = run_funcs.load_all_meeg_trials(dataset_name, channel_types)
+            # n_trial = min(number of trials in the trial file, config default)
+            all_trials = run_funcs.pick_random_trials(all_files, n_trials)
+
+            with open(session_pickle, "wb") as f:
+                pickle.dump(all_trials, f)
+        n_trials = len(all_trials) # Update n_trials
+
+        remaining_trials = []
+        remaining_trials = all_trials[len(completed_trial_ids):]
+
+
+        if not remaining_trials:
+            messagebox.showerror("Error","All trials in this session are completed!")
+            self._close_all_windows()
+            return
+        
+
+
+        for trial_idx, trial_info in enumerate(remaining_trials, start= len(completed_trial_ids) + 1):
+            if self.user_wants_to_quit:
+                break
+
+            subj     = trial_info.get("subj", "unknown")
+            ses      = trial_info.get("ses",  "unknown")
+            run      = trial_info.get("run",  "unknown")
+            ch_type  = trial_info.get("ch_type", "eeg")
+
+            fif_path = os.path.join("data", dataset_name, "core_data",
+                        f"{subj}_{ses}_{run}_preproc_raw.fif")
+            if not os.path.exists(fif_path):
+                print(f"[ERROR] Could not find .fif file: {fif_path}")
+                return None
+            raw_data = mne.io.read_raw_fif(fif_path, preload=False, allow_maxshield=True)
+            if raw_data is None:
+                print("[ERROR] Could not load trial data.")
+                continue
+
+            if trial_info["mode"] == "ICA":
+            # =======================================================
+            #                    ICA mode 
+            # =======================================================
+                ica_path = trial_info.get("ica_path", None)
+
+                if not ica_path or (not os.path.exists(ica_path)):
+                    print(f"[ERROR] ICA file not found {ica_path}")
+                    continue
+
+                print(f"[ICA] Trial {trial_idx}/{n_trials} => {fif_path} (ch={ch_type})")
+
+                ica = mne.preprocessing.read_ica(ica_path)
+                # Answers
+                ica_remove = {}
+                answer_dir = config.answer_dir
+                answer_data_path = os.path.join(answer_dir, answer_file)
+                if os.path.exists(answer_data_path):
+                    with open(answer_data_path, 'r') as file:
+                        answer_data = json.load(file)
+                    ica_remove = answer_data.get("ICA_remove_inds", {})
+                bad_components = []
+                if (subj in ica_remove) and (ses in ica_remove[subj]) and (run in ica_remove[subj][ses]) and (ch_type in ica_remove[subj][ses][run]):
+                    bad_components = ica_remove[subj][ses][run][ch_type]
+                
+                if len(bad_components) == 0: 
+                    print(f"[ERROR] ICA file's answer length is lower than {config.min_bad_ch}, skipping")
+                    continue
+
+                fig = custome_ica_plot(
+                    ica,
+                    ICA_remove_inds_list=bad_components,
+                    feedback=feedback,
+                    deselect=deselect,
+                    inst=raw_data,
+                    nrows=5,
+                    ncols=10,
+                    master=self.window,
+                    title=f"Trial {trial_idx}/{n_trials} - {ch_type}, click here to answer"
+                )
+                ica.plot_sources(title=f"Trial {trial_idx}/{n_trials} - {ch_type}", 
+                    inst = raw_data,
+                    show = False)
+
+                # Trial start time after plotting since it takes some time to initialize
+                # Not exactly sure to use real time or interval
+                trial_start_time = time.time()
+
+                selected_comps = set()
+
+                def on_close_ica_fig(event):
+                    """When the ICA figure is closed, finalize the trial metrics."""
+                    trial_end_time = time.time()
+                    fig.canvas.mpl_disconnect(cid_close)
+                    plt.close(fig)
+
+                    selected_comps.update(ica.exclude)
+                    hits = len(set(bad_components) & selected_comps)
+                    false_alarms = len(selected_comps - set(bad_components))
+                    missed_channels = set(bad_components) - selected_comps
+                    misses = len(missed_channels)
+                    n_components = config.ica_components
+                    correct_rejections = n_components - len(set(bad_components) | selected_comps)
+
+                    denom = hits + false_alarms + misses + correct_rejections
+                    accuracy = (hits + correct_rejections) / denom if denom > 0 else 0
+                    summary_window = TrialEndWindow(
+                    master=self.window,
+                    trial_idx=trial_idx,
+                    hits=hits,
+                    false_alarms=false_alarms,
+                    misses=misses,
+                    correct_rejections=correct_rejections,
+                    missed_channels = missed_channels
+                    )
+                    if summary_window.user_wants_quit:
+                        self.user_wants_to_quit = True
+                    
+                    row_dict = {
+                        'Trial': trial_idx,
+                        'StartTime_s': trial_start_time,
+                        'EndTime_s': trial_end_time,
+                        'ChannelType': ch_type,
+                        'SelectedChannels': ",".join(str(x) for x in sorted(selected_comps)),
+                        'BadChannels': ",".join(str(x) for x in sorted(bad_components)),
+                        'Hits': hits,
+                        'FalseAlarms': false_alarms,
+                        'Misses': misses,
+                        'CorrectRejections': correct_rejections,
+                        'Accuracy': accuracy,
+                        'D-Prime': run_funcs.compute_dprime(hits, false_alarms, misses, correct_rejections)
+                    }
+                    self._append_result_to_csv(row_dict, output_csv)
+
+                cid_close = fig.canvas.mpl_connect('close_event', on_close_ica_fig)
+
+                plt.show(block=True)
+
+            else:
+                # ===================================================================
+                #                        MEEG mode 
+                # ===================================================================
+                chs2display = trial_info.get("chs2display", [])
+                bad_channels_in_display = trial_info.get("bad_channels", [])
+                channel_type = trial_info.get("ch_type", "eeg")
+
+                n_channels = len(chs2display)
+                selected_channels = set()
+                trial_data = raw_data.copy().pick(chs2display)
+                print(f"[EEG/MEG] Trial {trial_idx}/{n_trials} => {fif_path} (ch={ch_type})")
+                trial_start_time = time.time()
+                trial_data.info['bads'] = []
+
+                def on_pick(event):
+                    artist = event.artist
+                    if isinstance(artist, plt.Text):
+                        ch_name = artist.get_text()
+                        ch_names = trial_data.info['ch_names']
+                        if ch_name in ch_names:
+                            if ch_name in selected_channels:
+                                if deselect:
+                                    selected_channels.remove(ch_name)
+                                    if feedback:
+                                        is_correct = (ch_name not in bad_channels_in_display)
+                                        FeedbackWindow(self.window, is_correct)
+                            else:
+                                selected_channels.add(ch_name)
+                                if feedback:
+                                    is_correct = (ch_name in bad_channels_in_display)
+                                    FeedbackWindow(self.window, is_correct)
+
+                def end_trial():
+                    fig.canvas.mpl_disconnect(cid_pick)
+                    fig.canvas.mpl_disconnect(cid_close)
+                    plt.close(fig)
+
+                    hits = len(set(bad_channels_in_display) & selected_channels)
+                    false_alarms = len(selected_channels - set(bad_channels_in_display))
+                    missed_channels = set(bad_channels_in_display) - selected_channels
+                    misses = len(missed_channels)
+                    correct_rejections = n_channels - len(selected_channels | set(bad_channels_in_display))
+
+                    denom = hits + false_alarms + misses + correct_rejections
+                    accuracy = (hits + correct_rejections) / denom if denom > 0 else 0
+                    summary_window = TrialEndWindow(
+                    master=self.window,
+                    trial_idx=trial_idx,
+                    hits=hits,
+                    false_alarms=false_alarms,
+                    misses=misses,
+                    correct_rejections=correct_rejections,
+                    missed_channels = missed_channels
+                    )
+                    if summary_window.user_wants_quit:
+                        self.user_wants_to_quit = True
+                    
+                    trial_end_time = time.time()
+                    row_dict = {
+                        'Trial': trial_idx,
+                        'StartTime_s': trial_start_time,
+                        'EndTime_s': trial_end_time,
+                        'ChannelType': channel_type,
+                        'SelectedChannels': ",".join(sorted(selected_channels)),
+                        'BadChannels': ",".join(sorted(bad_channels_in_display)),
+                        'Hits': hits,
+                        'FalseAlarms': false_alarms,
+                        'Misses': misses,
+                        'CorrectRejections': correct_rejections,
+                        'Accuracy': accuracy,
+                        'D-Prime': run_funcs.compute_dprime(hits, false_alarms, misses, correct_rejections)
+                    }
+                    self._append_result_to_csv(row_dict, output_csv)
+
+                def on_close(event):
+                    end_trial()
+
+                fig = trial_data.plot(
+                    n_channels=n_channels,
+                    duration=2,
+                    block=False,
+                    picks = chs2display,
+                    title=f"Trial {trial_idx}/{n_trials} - {channel_type}"
+                )
+                cid_pick = fig.canvas.mpl_connect('pick_event', on_pick)
+                cid_close = fig.canvas.mpl_connect('close_event', on_close)
+
+                plt.show(block=True)
+
+            if self.user_wants_to_quit:
+                break
+
+        if not self.user_wants_to_quit:
+            self.show_final_report(self.results)
+        else:
+            messagebox.showinfo("Session Paused", "You chose to save & quit. Next time, the remaining trials will resume.")
+            self._close_all_windows()
+
+
+    def _append_result_to_csv(self, row_dict, csv_path):
+        """
+        Append one trial row to an existing or new CSV file.
+        Also store it to self.results in memory.
+        """
+        fieldnames = [
+            'Trial', 'StartTime_s', 'EndTime_s', 'ChannelType',
+            'SelectedChannels', 'BadChannels',
+            'Hits', 'FalseAlarms', 'Misses', 'CorrectRejections',
+            'Accuracy', 'D-Prime'
+        ]
+        file_existed = os.path.exists(csv_path)
+        with open(csv_path, 'a', newline='') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            if not file_existed or os.path.getsize(csv_path) == 0:
+                writer.writeheader()
+            writer.writerow(row_dict)
+
+        self.results.append(row_dict)
+
+
+    def compute_sliding_dprime(self, records, window_size):
+        records = sorted(records, key=lambda r: r[0])
+        dprime_points = []
+
+        for i in range(len(records)):
+            start_idx = max(0, i - window_size + 1)
+            window_data = records[start_idx : i + 1]
+
+            w_hits = sum(r[1] for r in window_data)
+            w_fa   = sum(r[2] for r in window_data)
+            w_miss = sum(r[3] for r in window_data)
+            w_cr   = sum(r[4] for r in window_data)
+
+            dprime_val = run_funcs.compute_dprime(w_hits, w_fa, w_miss, w_cr)
+            trial_num  = records[i][0]  # x-axis uses the current trial's index
+
+            dprime_points.append((trial_num, dprime_val))
+
+        return dprime_points
+
+    def show_final_report(self, results):
+        """
+        Display a final pop-up summarizing metrics across all trials, 
+        and plot d-prime with a sliding window for each channel type (plus overall).
+        """
+
+        report_window = tk.Toplevel()
+        report_window.title("Final Report")
+        report_window.configure(bg="white")
+
+        # Track this window for proper closing later...
+        self.open_windows.append(report_window)
+        report_window.protocol("WM_DELETE_WINDOW", self._close_all_windows)
+
+        metrics_by_type = {}
+        for row in results:
+            ctype = row['ChannelType']
+            h = row['Hits']
+            fa = row['FalseAlarms']
+            m = row['Misses']
+            cr = row['CorrectRejections']
+            if ctype not in metrics_by_type:
+                metrics_by_type[ctype] = {
+                    'hits': 0, 'fa': 0, 'miss': 0, 'cr': 0, 'count': 0
+                }
+            metrics_by_type[ctype]['hits'] += h
+            metrics_by_type[ctype]['fa']   += fa
+            metrics_by_type[ctype]['miss'] += m
+            metrics_by_type[ctype]['cr']   += cr
+            metrics_by_type[ctype]['count'] += 1
+
+        lines = []
+        for ctype, data in metrics_by_type.items():
+            hits   = data['hits']
+            fa     = data['fa']
+            misses = data['miss']
+            cr     = data['cr']
+            denom  = hits + fa + misses + cr
+            dprime = run_funcs.compute_dprime(hits, fa, misses, cr)
+            lines.append(
+                f"Type={ctype}, Trials={data['count']} => "
+                f"Hits={hits}, FA={fa}, Misses={misses}, CR={cr}, "
+                f"d'={dprime:.3f}"
+            )
+
+        # Display the summary for each channel type
+        summary_label = tk.Label(report_window, text="\n".join(lines), bg="white", justify="left")
+        summary_label.pack(padx=10, pady=10)
+        # Compute and display overall metrics
+        total_hits   = sum(d['hits'] for d in metrics_by_type.values())
+        total_fa     = sum(d['fa']   for d in metrics_by_type.values())
+        total_misses = sum(d['miss'] for d in metrics_by_type.values())
+        total_cr     = sum(d['cr']   for d in metrics_by_type.values())
+        total_dprime = run_funcs.compute_dprime(total_hits, total_fa, total_misses, total_cr)
+
+        overall_text = (
+            f"Overall => Hits={total_hits}, FA={total_fa}, "
+            f"Misses={total_misses}, CR={total_cr}, d'={total_dprime:.3f}"
+        )
+        overall_label = tk.Label(report_window, text=overall_text, bg="white", justify="left")
+        overall_label.pack(padx=10, pady=10)
+
+        # ------------
+        # Prepare data
+        # ------------
+        ctype2records = {}
+        overall_records = []
+
+        for row in results:
+            trial_idx = row['Trial']
+            ctype     = row['ChannelType']
+            h         = row['Hits']
+            fa        = row['FalseAlarms']
+            miss      = row['Misses']
+            cr        = row['CorrectRejections']
+            
+            if ctype not in ctype2records:
+                ctype2records[ctype] = []
+            ctype2records[ctype].append((trial_idx, h, fa, miss, cr))
+
+            overall_records.append((trial_idx, h, fa, miss, cr))
+
+        fig = Figure(figsize=(6, 4), dpi=100)
+        ax = fig.add_subplot(111)  # single axis
+
+        color_cycle = plt.rcParams['axes.prop_cycle'].by_key()['color']
+        
+        canvas = FigureCanvasTkAgg(fig, master=report_window)
+        canvas_widget = canvas.get_tk_widget()
+        canvas_widget.pack(side="top", fill="both", expand=True)
+
+        def update_plot():
+            # Clear the axis each time we update
+            ax.clear()
+            ax.set_title("d' vs Trial # (Sliding Window)")
+            ax.set_xlabel("Trial #")
+            ax.set_ylabel("d'")
+            ax.grid(True)
+
+            try:
+                wsize = int(entry_window_size.get())
+            except ValueError:
+                wsize = 5  # fallback to default if invalid input
+
+            # Plot each channel type in a different color
+            ctype_list = sorted(ctype2records.keys())
+            for i, ctype in enumerate(ctype_list):
+                records = ctype2records[ctype]
+                # Compute sliding-window dprime
+                dprime_points = self.compute_sliding_dprime(records, wsize)
+                # Extract x (trial #) and y (dprime)
+                x_vals = [dp[0] for dp in dprime_points]
+                y_vals = [dp[1] for dp in dprime_points]
+                color  = color_cycle[i % len(color_cycle)]
+                ax.plot(x_vals, y_vals, marker='o', linestyle='-', color=color, label=ctype)
+
+            overall_dprime_points = self.compute_sliding_dprime(overall_records, wsize)
+            ox_vals = [dp[0] for dp in overall_dprime_points]
+            oy_vals = [dp[1] for dp in overall_dprime_points]
+            ax.plot(ox_vals, oy_vals, marker='x', linestyle='--', color='black', label='Overall')
+
+            ax.legend()
+            ax.set_ylim(bottom=0)  # d' can be negative theoretically, but set bottom=0 for clarity
+            canvas.draw()
+
+        # ------------------------------
+        # Create an input area for the sliding window size
+        # ------------------------------
+        control_frame = tk.Frame(report_window, bg="white")
+        control_frame.pack(pady=10)
+
+        lbl_window_size = tk.Label(control_frame, text="Sliding Window Size:", bg="white")
+        lbl_window_size.pack(side="left")
+
+        entry_window_size = tk.Entry(control_frame, width=5)
+        entry_window_size.insert(0, "5")
+        entry_window_size.pack(side="left", padx=5)
+
+        btn_submit = tk.Button(control_frame, text="Submit", command=update_plot)
+        btn_submit.pack(side="left")
+
+        update_plot()
+
+        # A close button to gracefully shut down
+        close_button = tk.Button(report_window, text="Close", command=self._close_all_windows)
+        close_button.pack(pady=10)
+        
+    def _close_all_windows(self):
+        """
+        Gracefully close all open windows and quit like a winner without force quitting
+        """                       
+        # 1) Destroy all Toplevel windows (child windows)
+        for w in self.open_windows:
+            try:
+                if w.winfo_exists():
+                    w.destroy()
+            except:
+                pass
+        self.open_windows.clear()
+
+        # 2) Finally destroy the main window (self.window) if it still exists
+        try:
+            if self.window and self.window.winfo_exists():
+                self.window.quit()
+                self.window.destroy()
+        except:
+            pass
+
+# ----------------------- Main ----------------------
+if __name__ == "__main__":
+    app = MEG_Chicken()
+    app.window.mainloop()
