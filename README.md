@@ -1,91 +1,95 @@
 ![Banner](banner.png)
-# MEG_Chicken
 
-# EEG and MEG artifact detection
+# MEG_Chicken
 
 This repository contains code and resources for an EEG and MEG artifact detection training program. Trainees can review and annotate data and receive immediate feedback on their choices. Trainers are encouraged to upload their own annotated data.
 
-## Table of Contents
+---
 
-- [Introduction](#introduction)
-- [Implicit learning: the chicken sexing problem](#background)
-- [Installation](#installation)
-- [Usage](#usage)
-  - [Preprocessing](#preprocessing)
-  - [Preparing Trials](#preparing-trials)
-  - [Running the Experiment](#running-the-experiment)
-- [Experiment Details](#experiment-details)
-- [Results](#results)
-- [License](#license)
-- [Acknowledgements](#acknowledgements)
+## **1. Environment Setup with `initializeChicken.py`**
 
-## Introduction
+Before running any other scripts, **ensure** your environment is ready:
 
-The detection of physiological and non-physiological artifacts in M/EEG data is notoriously subjective and relies on rigorous training. Here, we provide a simple tool, based on visualizations provided through MNE python, to train students to consistently detect different types of artifacts and real M/EEG data.
+``` bash
+python -m pip install -r requirements.txt
+python initializeChicken.py
+```
+- This script checks for required packages (via `requirements.txt`).
+- It creates directory structures (e.g., `data/`, `data/raw/`, `data/answer/`, etc.).
+- It downloads an MNE sample `.fif` file for demonstration, then removes unneeded files.
+---
 
-## Implicit learning: chicken sexing problem
+## **2. Data Structure**
 
-Chicken sexers quickly and reliably determine the sex of day old chicks that do not have obvious distinguishing features . They do so often without explicit knowledge of the visual cues differentiating male from female chicks. Instead, their skill is developed through implicit procedural learning, facilitated by direct and immediate feedback during training.We here use a similar principle, direct and immediate feedback on each decision, to train researchers to quickly and reliably detect artifacts in MEG and EEG data.
-Ref: https://web-archive.southampton.ac.uk/cogprints.org/3255/1/chicken.pdf
+Below is the recommended folder layout. Adjust if needed:
+``` graphql
+data/
+├── raw/                         # Your raw .fif files
+├── dataset1/
+│   ├── core_data/               # Preprocessed files
+│   │   ├── *.fif
+│   │   └── index_db/            # Trial index database
+│   ├── ica/                     # ICA results by channel type
+│   │   └── {channel_type}/
+│   └── trials/                  # SQLite DB for trial info
+├── answer/                      # JSON files with annotated data (bad channels/ICA comps)
+├── session/                     # (Optional) Pickled session files
+└── res/                         # (Optional) CSV result files (scores, logs, etc.)
 
-## Installation
 
-### Clone the Repository
+```
+---
 
-```bash
-git clone https://github.com/yourusername/MEG_Chicken.git
-cd MEG_Chicken
+## **3. Preprocessing with `prepChicken.py`**
+
+`prepChicken.py` applies filtering, ICA fitting, and trial file generation. All raw `.fif` files should follow the naming format: `subject_session_run.fif`.
+### **Usage**
+``` bash
+python prepChicken.py [COMMANDS] [OPTIONS]
 ```
 
-### Set Up the Environment
+### **Commands (Case-Insensitive)**
 
-check required dependencies in requirements.txt
+- **Channel Types**:
+    
+    - `EEG` → Only EEG
+    - `MEG` → Mag + Grad
+    - `Mag` → Magnetometers only
+    - `Grad` → Gradiometers only
+    - `MEEG` → All channel types (default if none specified)
+- **Process Steps**:
+    
+    - `PRE` / `PREPROC` / `PREPROCESSING` → Run basic preprocessing (filtering)
+    - `ICA` → Fit and save ICA components
+    - `TRIAL` / `TRIALS` → Generate trial files in `.db` format
+    - `ANS` -> Creating answer sheet for data
+    - `ALL` → Shorthand for `PRE + ANS + ICA + TRIAL`
 
-## Usage
+### **Options (Examples)**
+``` bash
+# Adjust filters or ICA settings on the command line:
+python prepChicken.py PRE --l-freq 0.5 --h-freq 60
+python prepChicken.py ICA --n-components 30 --ica-method fastica
 
-### Preprocessing with preproc.py
-The preproc.py script handles loading and preprocessing of raw EEG and MEG data, including applying filters, generating trial files and fitting ICA models.
-
-To generate or regenerate trial data (pickled) on raw data:
-```bash
-python preproc.py MEEG TRIAL
+# Combine multiple steps:
+python prepChicken.py MEEG PRE ICA TRIAL --trials-per-file 5
+# OR
+python prepChicken.py MEEG ALL
 ```
-To Run ICA on raw data:
-```bash
-python preproc.py MEEG ICA
+For additional parameters, see `config.py`.
+
+---
+## **4. Start the training with `runChicken.py`**
+``` bash
+python runChicken.py
 ```
-For both tasks:
-```bash
-python preproc.py MEEG ICA TRIAL
-```
-
-Options:
-
-`--l-freq`, `--h-freq`, `--notch-freq`: set filter cutoffs.
-
-`--n-components`: for ICA.
-
-`--n-versions`, `--trials-per-file`: how many trial versions to create.
-
-`--do-trial`: explicitly triggers trial generation.
-
-Example:
-```bash
-python preproc.py MEEG ICA --do-trial --n-components 25 --n-versions 2 --trials-per-file 3
-```
-
-### Running the training
-```bash
-python chickenrun.py
-```
-
-
-## License
-
-This project is licensed under the GNU General Public License v3.0. See the [LICENSE](LICENSE) file for details.
-
-### Acknowledgements
-
-Special thanks to the contributors for their support and resources. 
-
-
+Launches a graphical interface where trainees can:
+1. Enter Participant ID, Session ID.
+2. Choose a dataset folder (e.g. `dataset1`) and an answer file (e.g. `data/answer/some_answer.json`).
+3. Decide whether to enable immediate feedback, deselect mode, and/or show instructions.
+4. Conduct trials in **EEG/MEG mode** or **ICA mode**, selecting channels or components believed to be “bad.”
+## 5. Additional Tips
+- **Answer File (.json)**: Must exist in `data/answer/` if you want to enable correct/incorrect feedback.
+- **Modifying Default Settings**: Check `config.py`.
+- **Resuming Sessions**: Unfinished runs are usually saved so you can resume from where you left off.
+## Enjoy discovering and labeling artifacts in your EEG/MEG data!
