@@ -3,6 +3,7 @@ from PIL import Image, ImageTk
 from playsound import playsound
 import os
 from .run_funcs import compute_dprime
+import threading
 
 class FeedbackWindow:
     """
@@ -16,6 +17,8 @@ class FeedbackWindow:
         self.popup.title("Feedback")
         self.popup.attributes("-topmost", True)
         
+        self._images = [] 
+
         # Background pic
         correct_image = 'correct.png'
         incorrect_image = 'wrong.png'
@@ -39,16 +42,20 @@ class FeedbackWindow:
         self.bg_image_tk = ImageTk.PhotoImage(resized_img)
         self.bg_label = tk.Label(self.popup, image=self.bg_image_tk)
         self.bg_label.pack() 
-                
+
         # Chicken Sound playback
-        if is_correct:
-            playsound(os.path.join('resource', 'correct.mp3'))
-        else:
-            playsound(os.path.join('resource', 'wrong.mp3'))
-               
-        # Use global grab so that we can block other windows, but sometimes it doesnt work
-        self.popup.grab_set_global()
-        self.popup.wait_window(self.popup)
+        self.play_sound_thread()
+        self.popup.update_idletasks()  # Process pending GUI operations
+        self.popup.update()
+
+        self.popup.after(1000, self.popup.destroy)
+
+    def play_sound_thread(self):
+        """Play sound without blocking the GUI."""
+        def _play():
+            sound_file = 'correct.mp3' if self.is_correct else 'wrong.mp3'
+            playsound(os.path.join('resource', sound_file))
+        threading.Thread(target=_play, daemon=True).start()
 
 class TrialEndWindow:
     """
