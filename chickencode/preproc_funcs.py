@@ -31,7 +31,7 @@ import pickle
 import sqlite3
 from tqdm import tqdm
 import config
-from code import layeggs
+from chickencode import layeggs
 
 # -------------------------------
 #           Core Dataset

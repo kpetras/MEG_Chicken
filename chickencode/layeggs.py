@@ -6,6 +6,7 @@ import json
 import matplotlib
 import matplotlib.pyplot as plt
 import config
+import copy
 
 # ============ MNE Matplotlib settings ============
 mne.viz.set_browser_backend('matplotlib')
@@ -225,22 +226,24 @@ def pick_ica_components(bad_dict, data_dir, n_components=config.ica_components, 
             print(f"[ICA] Fitting {ch_type} ICA for {filename} ... (n_components={n_components}, method={method})")
             ica = mne.preprocessing.ICA(n_components=n_components, method=method, random_state=random_state)
             ica.fit(raw, picks=picks)
-
+            #make sure that second window also captures excluded components
+            ica2 = copy.deepcopy(ica)
             title_str = f"{subj}_{ses}_{run}_{ch_type} - close window to finalize"
             ica.plot_sources(title=title_str, 
                                 inst = raw,
                                 show = False)
-            plt.show(block=True)            
-
+            plt.show(block=False)
             title_str = f"{subj}_{ses}_{run}_{ch_type} - close window to finalize"
-            ica.plot_components(title=title_str, 
+            ica2.plot_components(title=title_str, 
                                 inst = raw,
                                 nrows = 5,
                                 ncols = 10,
                                 show=False)
             plt.show(block=True)
 
-            excluded_comps = list(ica.exclude)
+            excluded_comps1 = list(ica.exclude)
+            excluded_comps2 = list(ica2.exclude)
+            excluded_comps = list(set(excluded_comps1 + excluded_comps2))
             print(f"[ICA] Excluded comps for {ch_type}: {excluded_comps}")
 
             # Store them in the dict

@@ -3,7 +3,7 @@
 import os
 import argparse
 import config
-from code.preproc_funcs import (
+from chickencode.preproc_funcs import (
     preprocess_and_make_trials,
     get_unique_path
 )
