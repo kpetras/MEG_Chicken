@@ -1,21 +1,20 @@
 # config.py
 import os
 # Directories
-data_dir = os.path.join('data', 'raw')
-trials_dir = os.path.join('data', 'trials')
-ica_dir = os.path.join('data', 'ica')
-preprocessed_save_path = os.path.join('data', 'preprocessed')
+raw_dir = os.path.join('data', 'raw')
 res_dir = os.path.join('data', 'results')
-sample_dir = os.path.join('data', 'sample')
 session_dir = os.path.join('data', 'session_data')
 answer_dir = os.path.join('data', 'answer')
-nest_dir = os.path.join('data', 'nest') # Where the chicken lay eggs. HA! Get it?
+exclude_dirs = [os.path.basename(raw_dir), 
+                os.path.basename(res_dir), 
+                os.path.basename(session_dir), 
+                os.path.basename(answer_dir)]
 
 # Experiment setups
-n_trials_per_session = 5
+n_trials_per_session = 15
 
 # ICA settings
-ica_components = 50 
+ica_components = 50 # The number of ICA components should be less than 50
 ica_method = 'fastica'
 ica_seed = 42
 
