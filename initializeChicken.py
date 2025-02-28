@@ -46,7 +46,9 @@ def main():
     if not os.path.exists(data_dir):
         os.makedirs(data_dir)
         print("[INFO] Root directory created")
-    subDirs = [config.raw_dir, config.res_dir, config.session_dir, config.answer_dir]
+    subDirs = [config.raw_dir, config.ica_dir, os.path.join(config.ica_dir, 'eeg'),
+            os.path.join(config.ica_dir, 'mag'), os.path.join(config.ica_dir, 'grad'),
+            config.res_dir, config.session_dir, config.answer_dir, config.preproc_dir]
     for subDir in subDirs:
         if not os.path.exists(subDir):
             os.makedirs(subDir)
@@ -73,6 +75,8 @@ def main():
         shutil.rmtree(sample_dataset_path)
         print(f"[INFO] Removed downloaded dataset directory: {sample_dataset_path}")
     print("[INFO] Chicken initialization complete")
+    print("[INFO] You can now run prepChicken.py to start preprocessing")
+    print("[INFO] Or you can first add your own data to the 'data/raw' directory")
 if __name__ == "__main__":
     main()
 

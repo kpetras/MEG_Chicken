@@ -31,24 +31,6 @@ def get_unique_filename(base_path):
             return candidate_path
         i += 1
 
-def ensure_hierarchy(storage_dict, subj, ses, run, if_ica=False):
-    """
-    Helper to ensure the nested keys exist in the provided `storage_dict[subj][ses][run]`.
-    """
-    if subj not in storage_dict:
-        storage_dict[subj] = {}
-    if ses not in storage_dict[subj]:
-        storage_dict[subj][ses] = {}
-    if run not in storage_dict[subj][ses]:
-        if if_ica:
-            # For ICA dictionary: run will be a dictionary to store channel types
-            storage_dict[subj][ses][run] = {}
-        else:
-            # For MEEG dictionary: run will be a list to store bad channels
-            storage_dict[subj][ses][run] = []
-
-    return storage_dict
-
 def merge_bad_dicts(old_dict, new_dict):
     """
     If the user want to build on an existing answer dict, we merge them
@@ -109,53 +91,33 @@ def merge_bad_dicts(old_dict, new_dict):
 
     return old_dict                            
 
-def read_meeg_bad_channels(bad_dict, data_dir):
+def read_meeg_bad_channels(bad_dict, data_file):
     """
     1) Iterate over MEEG files in data_dir
-    2) For each file, read raw.info['bads'], distribute them to 'badC_EEG' or 'badC_MEG'.
-    """
-    data_files = [f for f in os.listdir(data_dir) if not f.startswith('.')]
-    print("data_files",data_files)
-    if not data_files:
-        print(f"[MEEG] No files found in {data_dir}. Skipping MEEG mode.")
-        return bad_dict
+    2) For each file, read raw.info['bads'], distribute them to 'badC_EEG' or 'badC_MEG'.   """
 
-    for data_file in data_files:
-        file_path = os.path.join(data_dir, data_file)
-        print("file_path", file_path)
-        # Expect subj_ses_run in the filename
-        try:
-            subj, ses, run = data_file.split('_')[:3]
-        except ValueError:
-            print(f"[MEEG] File name {data_file} not in expected subj_ses_run format. Skipping.")
-            continue
+    file_path = os.path.join(config.raw_dir, data_file)
+    try:
+        raw = mne.io.read_raw(file_path, preload=False, allow_maxshield=True)
+    except Exception as e:
+        print(f"[MEEG] Failed to read {file_path}: {e}")
+        
 
-        print(f"[MEEG] Reading file: {file_path}")
-        try:
-            raw = mne.io.read_raw(file_path, preload=False, allow_maxshield=True)
-        except Exception as e:
-            print(f"[MEEG] Failed to read {file_path}: {e}")
-            continue
+    all_bads = raw.info['bads']
+    print("raw.info['bads']", all_bads)
+    eeg_bads = []
+    meg_bads = []
+    for ch_name in all_bads:
+        if ch_name.startswith("EEG"):
+            eeg_bads.append(ch_name)
+        elif ch_name.startswith("MEG"):
+            meg_bads.append(ch_name)
 
-        all_bads = raw.info['bads']
-        print("raw.info['bads']", all_bads)
-        eeg_bads = []
-        meg_bads = []
-        for ch_name in all_bads:
-            if ch_name.startswith("EEG"):
-                eeg_bads.append(ch_name)
-            elif ch_name.startswith("MEG"):
-                meg_bads.append(ch_name)
+    # if eeg_bads: create the structure even if there's no bads
+    bad_dict["badC_EEG"].extend(eeg_bads)
 
-        # if eeg_bads: create the structure even if there's no bads
-        badE = bad_dict["badC_EEG"]
-        badE = ensure_hierarchy(badE, subj, ses, run, if_ica = False)
-        bad_dict["badC_EEG"][subj][ses][run].extend(eeg_bads)
-
-        # if meg_bads: create the structure even if there's no bads
-        badM = bad_dict["badC_MEG"]
-        badM = ensure_hierarchy(badM, subj, ses, run, if_ica =False)
-        bad_dict["badC_MEG"][subj][ses][run].extend(meg_bads)
+    # if meg_bads: create the structure even if there's no bads
+    bad_dict["badC_MEG"].extend(meg_bads)
 
     return bad_dict
 
@@ -178,138 +140,95 @@ def detect_channel_types(raw):
 
     return present_types
 
-def pick_ica_components(bad_dict, data_dir, n_components=config.ica_components, method=config.ica_method, random_state = config.ica_seed):
+def pick_ica_components(bad_dict, data_file, n_components=config.ica_components, method=config.ica_method, random_state = config.ica_seed):
     """
     1) Parse subj, ses, run from file name
     2) Read raw (assumed preprocessed)
     3) Detect which channel types (EEG, Mag, Grad) exist
     4) For each present channel type, fit ICA, let user select comps, store in 'ICA_remove_inds'
     """
-    data_files = [f for f in os.listdir(data_dir) if not f.startswith('.')]
-    if not data_files:
-        print(f"[ICA] No files found in {data_dir}. Skipping ICA mode.")
+    filename = os.path.join(config.raw_dir, data_file)
+
+    print(f"\n=== Processing: {data_file}  ===")
+
+    # Read raw
+    try:
+        raw = mne.io.read_raw(filename, preload=False, allow_maxshield=True)
+    except Exception as e:
+        print(f"Failed to read {filename}: {e}")
         return
-    for data_file in data_files:
-        file_path = os.path.join(data_dir, data_file)
-        filename = os.path.basename(file_path)
-        try:
-            subj, ses, run = filename.split('_')[:3]
-        except ValueError:
-            print(f"[WARN] {filename} not in 'subj_ses_run' format. Skipping.")
-            return
 
-        print(f"\n=== Processing: subj={subj}, ses={ses}, run={run}, file={filename} ===")
+    # Detect channel types
+    present_types = detect_channel_types(raw)
+    if not present_types:
+        print(f"No EEG/MAG/GRAD found in {filename}. Skipping ICA.")
+        return
 
-        # Read raw
-        try:
-            raw = mne.io.read_raw(file_path, preload=False, allow_maxshield=True)
-        except Exception as e:
-            print(f"Failed to read {file_path}: {e}")
-            return
+    # For each channel type, do a separate ICA
+    for ch_type in present_types:
+        ica = mne.preprocessing.read_ica(os.path.join(config.ica_dir, ch_type, data_file[:-4] + '_ica.fif'))
+        #make sure that second window also captures excluded components
+        ica2 = copy.deepcopy(ica)
+        title_str = f"{filename} - close window to finalize"
+        ica.plot_sources(title=title_str, 
+                            inst = raw,
+                            show = False)
+        plt.show(block=False)
+        title_str = f"{filename} - close window to finalize"
+        ica2.plot_components(title=title_str, 
+                            inst = raw,
+                            nrows = 5,
+                            ncols = 10,
+                            show=False)
+        plt.show(block=True)
 
-        # Detect channel types
-        present_types = detect_channel_types(raw)
-        if not present_types:
-            print(f"No EEG/MAG/GRAD found in {filename}. Skipping ICA.")
-            return
+        excluded_comps1 = list(ica.exclude)
+        excluded_comps2 = list(ica2.exclude)
+        excluded_comps = list(set(excluded_comps1 + excluded_comps2))
+        print(f"[ICA] Excluded comps for {ch_type}: {excluded_comps}")
 
-        # For each channel type, do a separate ICA
-        for ch_type in present_types:
-            # Build picks
-            if ch_type == 'eeg':
-                picks = mne.pick_types(raw.info, eeg=True, meg=False)
-            elif ch_type == 'mag':
-                picks = mne.pick_types(raw.info, meg='mag', eeg=False)
-            elif ch_type == 'grad':
-                picks = mne.pick_types(raw.info, meg='grad', eeg=False)
+        # Store them in the dict
+        bad_dict["ICA_remove_inds_" +  ch_type] = excluded_comps
 
-            print(f"[ICA] Fitting {ch_type} ICA for {filename} ... (n_components={n_components}, method={method})")
-            ica = mne.preprocessing.ICA(n_components=n_components, method=method, random_state=random_state)
-            ica.fit(raw, picks=picks)
-            #make sure that second window also captures excluded components
-            ica2 = copy.deepcopy(ica)
-            title_str = f"{subj}_{ses}_{run}_{ch_type} - close window to finalize"
-            ica.plot_sources(title=title_str, 
-                                inst = raw,
-                                show = False)
-            plt.show(block=False)
-            title_str = f"{subj}_{ses}_{run}_{ch_type} - close window to finalize"
-            ica2.plot_components(title=title_str, 
-                                inst = raw,
-                                nrows = 5,
-                                ncols = 10,
-                                show=False)
-            plt.show(block=True)
-
-            excluded_comps1 = list(ica.exclude)
-            excluded_comps2 = list(ica2.exclude)
-            excluded_comps = list(set(excluded_comps1 + excluded_comps2))
-            print(f"[ICA] Excluded comps for {ch_type}: {excluded_comps}")
-
-            # Store them in the dict
-            # bad_dict["ICA_remove_inds"][subj][ses][run][ch_type] = [excluded comps]
-            ica_inds_dict = bad_dict["ICA_remove_inds"]
-            ensure_hierarchy(ica_inds_dict, subj, ses, run, if_ica = True)
-            ica_inds_dict[subj][ses][run][ch_type] = excluded_comps
-
-def makeAns(cmds,output):
+def makeAns(cmds,answer_file, data_file, pick_bad_channels=True, pick_bad_components=True):
 
     bad_dict_new = {
-        "badC_EEG": {},
-        "badC_MEG": {},
-        "ICA_remove_inds": {}
+        "badC_EEG": [],
+        "badC_MEG": [],
+        "ICA_remove_inds_eeg": [],
+        "ICA_remove_inds_mag": [],
+        "ICA_remove_inds_grad": [],
     }
 
     # If MEEG
-    if "meeg" in cmds:
-        print("[INFO] MEEG mode: scanning raw files for bad channels.")
-        bad_dict_new = read_meeg_bad_channels(bad_dict_new, data_dir=config.raw_dir)
+    if pick_bad_channels:
+        print("[INFO] Currently does the wrong thing, Needs to be done.")
+        bad_dict_new = read_meeg_bad_channels(bad_dict_new, data_file=data_file)
+    else:
+        bad_dict_new = read_meeg_bad_channels(bad_dict_new, data_file=data_file)
         print(bad_dict_new["badC_EEG"])
 
     # If ICA
-    if "ica" in cmds:
+    if pick_bad_components:
         print("[INFO] ICA mode: opening raw files for picking components.")
-        pick_ica_components(bad_dict_new, data_dir=config.raw_dir)
+        pick_ica_components(bad_dict_new, data_file=data_file)
 
     # If nothing, do nothing
     if not cmds:
         print("No commands specified. Usage example: `python script.py MEEG ICA`. Exiting.")
         return
 
-    answer_dir = config.answer_dir
-    os.makedirs(answer_dir, exist_ok=True)
-
-    output_json_path = os.path.join(answer_dir, output)
-    # If the file ALREADY exists, ask user if they want to build on it (merge)
-    if os.path.exists(output_json_path):
-        print(f"File already exists: {output_json_path}")
-        user_resp = input("Do you want to build on that existing file? (y/n): ").strip().lower()
-        if user_resp in ("y", "yes"):
-            # Read and Merge
-            with open(output_json_path, 'r', encoding='utf-8') as jf:
-                file_content = jf.read().strip()
-                if not file_content:  # Check if file is empty
-                    print("[WARNING] Existing JSON file is empty. Using an empty dictionary.")
-                    return
-                else:
-                    bad_dict_old = json.loads(file_content) 
-            merged_dict = merge_bad_dicts(bad_dict_old, bad_dict_new)
-
-            # Overwrite
-            with open(output_json_path, 'w', encoding='utf-8') as jf:
-                json.dump(merged_dict, jf, indent=2, ensure_ascii=False)
-            print(f"[DONE] Merged updates and overwrote {output_json_path}")
+    # Read existing JSON file (that might be empty) and add to it
+    with open(answer_file, 'r', encoding='utf-8') as jf:
+        file_content = jf.read().strip()
+        if not file_content:  # Check if file is empty
+            print("[WARNING] Existing JSON file is empty. Using an empty dictionary.")
             return
         else:
-            # If user chooses NO, pick a unique new filename
-            print("User chose not to build on existing. Creating a new file name ...")
-            output_json_path = get_unique_filename(output_json_path)
-
-    with open(output_json_path, 'w', encoding='utf-8') as jf:
-        json.dump(bad_dict_new, jf, indent=2, ensure_ascii=False)
-        print(f"[DONE] Output JSON saved to: {output_json_path}")
+            bad_dict_old = json.loads(file_content) 
+    merged_dict = merge_bad_dicts(bad_dict_old, bad_dict_new)
     
-    return bad_dict_new
+    return merged_dict
 
 
 

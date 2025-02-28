@@ -3,14 +3,15 @@
 import os
 import argparse
 import config
+import json
 from chickencode.preproc_funcs import (
-    preprocess_and_make_trials,
+    prepare_chickenrun,
     get_unique_path
 )
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Script to preprocess MEEG data, optionally run ICA, and/or make trial snippets."
+        description="Script to preprocess MEEG data, optionally run ICA, and/or make answer templates."
     )
 
     # Positional arguments: commands (case-insensitive)
@@ -19,26 +20,19 @@ def main():
         "commands", 
         nargs="*", 
         help=(
-            "Commands: PRE/PREPROC/PREPROCESSING, MEEG, MEG, EEG, MAG, GRAD, ANS, ICA, TRIAL(S). "
+            "Commands: PRE/PREPROC/PREPROCESSING, MEEG, MEG, EEG, MAG, GRAD, ANS, ICA. "
             "Any presence of PRE* triggers preprocessing, "
-            "ICA triggers ICA, TRIAL triggers trial generation,"
+            "ICA triggers ICA,"
               "PRE/PREPROC/PREPROCESSING trigger preprocessing."
-            "ALL: PRE, MEEG, ANS, ICA, TRIAL"
+            "ALL: PRE, MEEG, ICA, pickbadchannels, pickbadcomponents"
         )
     )
     # Dataset name (default=dataset1 if user doesn't supply anything)
     parser.add_argument(
-        "--dataset-name",
+        "--data-file",
         type=str,
-        default="dataset",
-        help="Name of the dataset folder under data/. (default='dataset1')"
-    )
-
-    parser.add_argument(
-        "--output",
-        type=str,
-        default="answer_new.json",
-        help="Name of the output JSON (default=answer_new(_num).json)."
+        default=None,
+        help="Name of the dataset to process. (default=None), meaning you go through all datasets in raw/"
     )
 
     # Common optional arguments
@@ -46,8 +40,6 @@ def main():
     parser.add_argument("--h-freq", type=float, default=config.h_freq, help="Low-pass filter cutoff (default=80 Hz).")
     parser.add_argument("--notch-freq", type=float, default=config.notch_freq, help="Base notch filter frequency (default=50 Hz).")
 
-    parser.add_argument("--n-versions", type=int, default=config.n_versions, help="Number of trial-version repeats (default=3).")
-    parser.add_argument("--trials-per-file", type=int, default=config.trials_per_file, help="Trials per version per channel_type (default=5).")
     parser.add_argument("--total-channels", type=int, default=config.total_channels, help="Number of channels in each snippet (default=15).")
     parser.add_argument("--max-bad-ch", type=int, default=config.max_bad_ch, help="Max bad channels forced in snippet (default=3).")
     parser.add_argument("--min-bad-ch", type=int, default=config.min_bad_ch, help="Min bad channels forced in snippet (default=1).")
@@ -56,7 +48,6 @@ def main():
     parser.add_argument("--n-components", type=int, default=config.ica_components, help="Number of ICA components (default=50).")
     parser.add_argument("--ica-method", type=str, default=config.ica_method, help="ICA method (e.g. fastica, infomax).")
     parser.add_argument("--random-state", type=int, default=config.ica_seed, help="Random seed for ICA (default=42).")
-
 
     args = parser.parse_args()
     commands_lower = [cmd.lower() for cmd in args.commands]
@@ -88,17 +79,17 @@ def main():
     channel_types_to_process = sorted(list(channel_set))
     do_preprocessing = any(cmd in ["pre", "preproc", "preprocessing"] for cmd in commands_lower)
     do_ica = ('ica' in commands_lower)
-    do_trial = ('trial' in commands_lower) or ('trials' in commands_lower)
-    do_ans = ('ans' in commands_lower)
+    do_ans = ('pickbadchannels' in commands_lower or 'pickbadcomponents' in commands_lower)
+    pick_bad_channels = ('pickbadchannels' in commands_lower)
+    pick_bad_components = ('pickbadcomponents' in commands_lower)
     raw_dir = config.raw_dir
-    dataset_dir = get_unique_path("data", args.dataset_name)
 
     if 'all' in commands_lower:
         do_preprocessing = True
         do_ica = True
-        do_trial = True
         do_ans = True
-
+        pick_bad_channels = True
+        pick_bad_components = True     
 
     # If ICA but no PRE, ask to confirm
     if do_ica and not do_preprocessing:
@@ -113,70 +104,112 @@ def main():
         ).strip().lower()
         if resp not in ["y", "yes"]:
             do_preprocessing = True  # run the whole process if user says no
+  
 
-    if do_trial and not do_ans:
-        resp = input(
-            "You specified TRIAL but not ANS. Do you have an existing answer sheet? [y/n]: "
-        ).strip().lower()
-        if resp not in ["y", "yes"]:
-            do_ans = True
-    
-    if do_trial and not do_ans:
+    #check which datasets are available if no dataset name is given
+    if args.data_file is None:
+        datafilenames = [
+            f for f in os.listdir(raw_dir) 
+            if not f.startswith('.') # skip hidden files
+        ]
+        if not datafilenames:
+            print(f"No datasets found in {raw_dir}. Exiting.")
+            return
+        print("Available datasets:")
+        for i, data_file in enumerate(datafilenames):
+            print(f"{i+1}. {data_file}")
+    else:
+        datafilenames = [args.data_file]
+
+    for data_file in datafilenames:    
         answer_dir = os.path.join("data", "answer") # hardcoding data/answer because let's just don't change this please
         if not os.path.isdir(answer_dir):
             print(f"[ERROR] No 'answer' directory found at {answer_dir}. Exiting.")
             return
         
         # List possible JSON files
-        answer_candidates = [f for f in os.listdir(answer_dir) if f.endswith('.json')]
-        if not answer_candidates:
-            print(f"[ERROR] No .json files found in {answer_dir}. Exiting.")
-            return
+        answer_candidates = [f for f in os.listdir(answer_dir) if  f.startswith(data_file[:-3])]
+        
+        if  do_ans:
+            if answer_candidates:
+                print("\n there is already an answer file available for this dataset:")
+                for ansf in answer_candidates:
+                    print(f"  - {ansf}")
+                print("\n Do you want to overwrite, reuse or add to the existing answer file? o/r/a]")
 
-        print("\nAvailable answer JSON files in 'data/answer':")
-        for ansf in answer_candidates:
-            print(f"  - {ansf}")
-
-        chosen_file = None
-        while True:
-            user_input = input("\nType the EXACT answer file name (e.g. 'answer_standardized.json'): ").strip()
-            file_path = os.path.join(answer_dir, user_input)
-            if os.path.isfile(file_path):
-                # Confirm
-                conf = input(f"Use '{user_input}' as the answer file? [y/n]: ").strip().lower()
-                if conf in ['y', 'yes']:
-                    chosen_file = file_path
-                    break
+                ans = input().strip().lower()
+                if ans == 'o':
+                    print("Overwriting the existing answer file")         
+                    # Create an empty JSON file
+                    with open(os.path.join(config.answer_dir, answer_candidates[0]), "w") as file:
+                        json.dump({}, file)  # Write an empty dictionary to the file
+                    answer_file = answer_candidates[0]
+                elif ans == 'a':
+                    print("Adding to the existing answer file")
+                    answer_file = answer_candidates[0]
+                elif ans == 'r':
+                    print("Not creating a new answer file")
+                    answer_file = None
+                    do_ans = False
             else:
-                print(f"File '{user_input}' not found in {answer_dir}. Try again...")
+                answer_file = data_file[:-3] + "json"
+                json.dump({}, open(os.path.join(answer_dir, answer_file), "w"))  # Write an empty dictionary to the file                
+        else: # if user did not ask for making an answer file, skip
+            answer_file = None
+            print("Warning: no answer file will be created")
 
-        answer_file = chosen_file
-    else:
-        answer_file = args.output
+        #list possible ica files
+        ica_candidates = []        
+        for root, _, files in os.walk(config.ica_dir):    
+            for file in files:   
+                if file.startswith(data_file[:-4]):
+                    ica_candidates.append(os.path.join(root,file))
 
-    # 1) Preprocess, generate trial files or ICAs if within command
-    if channel_types_to_process:
-        preprocess_and_make_trials(
-            raw_dir=raw_dir,
-            dataset_dir=dataset_dir,
-            channel_types=channel_types_to_process,
-            do_preprocessing = do_preprocessing,
-            do_ica=do_ica,
-            do_trial=do_trial,
-            do_ans = do_ans,        
-            l_freq=args.l_freq,
-            h_freq=args.h_freq,
-            notch_freq=args.notch_freq,
-            n_versions=args.n_versions,
-            trials_per_file=args.trials_per_file,
-            total_channels=args.total_channels,
-            max_bad_channels=args.max_bad_ch,
-            min_bad_channels=args.min_bad_ch,
-            n_components=args.n_components,
-            ica_method=args.ica_method,
-            random_state=args.random_state,
-            answer_file = answer_file
-        )
+        if ica_candidates and 'ica' in commands_lower:
+            print("\n Do want to overwrite the existing ica file? [y/n]. \"No\" reuses the existing ica file")
+            ans = input().strip().lower()
+            
+            if ans == 'y':
+                print("Overwriting the existing ica file")         
+                # Create an empty JSON file
+                for file in ica_candidates:                   
+                    os.remove(file)
+                    ica_candidates = []
+            elif ans == 'n':
+                print("Reusing the existing ica file")
+                do_ica = False
+        if (not ica_candidates) and  (not 'ica' in commands_lower):
+            print("No ICA file available yet, do you want to make one? [y/n]")
+            ans = input().strip().lower()            
+            if ans == 'y':
+                print("Creating a new ica file")
+                do_ica = True
+            elif ans == 'n':
+                print("ICA file required, exiting")
+                return
+   # 1) Preprocess, generate trial files or ICAs if within command
+        if channel_types_to_process:
+            prepare_chickenrun(
+                raw_dir=raw_dir,
+                data_file=data_file,
+                answer_file=answer_file,
+                channel_types=channel_types_to_process,
+                do_preprocessing = do_preprocessing,
+                do_ica=do_ica,
+                do_ans = do_ans,
+                pick_bad_channels = pick_bad_channels,
+                pick_bad_components = pick_bad_components,        
+                l_freq=args.l_freq,
+                h_freq=args.h_freq,
+                notch_freq=args.notch_freq,
+                total_channels=args.total_channels,
+                max_bad_channels=args.max_bad_ch,
+                min_bad_channels=args.min_bad_ch,
+                n_components=args.n_components,
+                ica_method=args.ica_method,
+                random_state=args.random_state,
+                
+            )
 
 if __name__ == "__main__":
     main()

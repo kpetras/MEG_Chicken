@@ -36,18 +36,7 @@ from chickencode import layeggs
 # -------------------------------
 #           Core Dataset
 # -------------------------------
-def _init_core_storage(dataset_dir):
-    """
-    Initialize core_data structure:
-    - core_data/preprocessed_channels/ : (Retained if needed for other tasks, but not used here)
-    - core_data/index_db/ : store trial and channel index
-    """
-    core_path = os.path.join(dataset_dir, "core_data")
-    # preprocessed_channels_dir = os.path.join(core_path, "preprocessed_channels")
-    # os.makedirs(preprocessed_channels_dir, exist_ok=True)
-    index_dir = os.path.join(core_path, "index_db")
-    os.makedirs(index_dir, exist_ok=True)
-    return core_path
+
 
 def _save_dataset_config(core_path, dataset_config):
     config_file = os.path.join(core_path, "dataset_config.json")
@@ -58,41 +47,15 @@ def _save_dataset_config(core_path, dataset_config):
 # ------------------------------------------
 #   Saving the Entire Preprocessed Raw .fif
 # ------------------------------------------
-def _save_preprocessed_raw_fif(raw, core_path, subj, ses, run):
+def _save_preprocessed_raw_fif(raw, preproc_path, data_file):
     """
     Name change: original_fname = "subj_ses_run.fif" -> "subj_ses_run_preproc_raw.fif"
     """
-    preproc_name = f"{subj}_{ses}_{run}_preproc_raw.fif"
-    save_path = os.path.join(core_path, preproc_name)
+    preproc_name = f"{data_file[:-4]}_preproc.fif"
+    save_path = os.path.join(preproc_path, preproc_name)
     raw.save(save_path, overwrite=True)
     print(f"[SAVED PREPROCESSED] {save_path}")
 
-
-# --------------------------------------------
-#               Trial DB
-# --------------------------------------------
-def _init_trial_db(db_path):
-    conn = sqlite3.connect(db_path)
-    conn.execute("""
-    CREATE TABLE IF NOT EXISTS trials (
-        trial_id TEXT PRIMARY KEY,
-        subj TEXT NOT NULL,
-        ses TEXT NOT NULL, 
-        run TEXT NOT NULL,
-        ch_type TEXT CHECK(ch_type IN ('eeg','mag','grad')),
-        version INTEGER,
-        chs2display BLOB NOT NULL,
-        bad_channels BLOB NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )""")
-    
-    conn.execute("""
-    CREATE INDEX IF NOT EXISTS idx_trials_subj 
-    ON trials (subj, ses, run)
-    """)
-    
-    conn.commit()
-    conn.close()
 
 # -------------------------------
 #           ICA
@@ -115,8 +78,8 @@ def _fit_and_save_ica(
     ica_ch_save_path = os.path.join(ica_save_path, channel_type)
     os.makedirs(ica_ch_save_path, exist_ok=True)
     ica.save(os.path.join(ica_ch_save_path, ica_name), overwrite=True)
-    print(f"[ICA] {channel_type} saved to {os.path.join(ica_ch_save_path, ica_name)}")
 
+    print(f"[ICA] {channel_type} saved to {os.path.join(ica_ch_save_path, ica_name)}")
 
 # -------------------------------
 #     SELECT AND SHUFFLE 
@@ -183,43 +146,36 @@ def get_unique_path(dir, base_name="trials.db"):
 # -------------------------------
 # PREPROCESS + MAKE TRIALS + ICA
 # -------------------------------
-def preprocess_and_make_trials(
+def prepare_chickenrun(
     raw_dir,  # always "data/raw" 
-    dataset_dir,  # e.g. "data/datasetName/"
     channel_types,
+    data_file,
+    answer_file=None,
     l_freq=0.1, 
     h_freq=80, 
     notch_freq=50, 
-    n_versions=3, 
-    trials_per_file=5,
     total_channels=15, 
     max_bad_channels=3, 
     min_bad_channels=1,
     do_preprocessing=True,
     do_ica=False,
-    do_trial=True,
     do_ans = True,
+    pick_bad_channels = True,
+    pick_bad_components = True,
     n_components=config.ica_components,
     ica_method=config.ica_method,
     random_state=config.ica_seed,
-    answer_file=None
 ):
     
-    ica_dir = os.path.join(dataset_dir, 'ica')
+    ica_dir = config.ica_dir
 
-    # Initialize core storage
-    core_path = _init_core_storage(dataset_dir)
-    # _init_channel_index_db(core_path)
-
-    # If do_trial is True, we need the 'answer' JSON for channel info
-    if do_trial and not do_ans:
-            with open(answer_file, 'r') as file:
-                answer_data = json.load(file)
-    if do_trial and do_ans:
-        answer_data = {}
+    # If do_ans is True, we need the 'answer' JSON 
+    if do_ans:
+        with open(os.path.join(config.answer_dir, answer_file), 'r') as file:
+            answer_data = json.load(file)
 
     # Print summary
-    print(f"\n=== Preprocessing for {channel_types} | do_ica={do_ica} | do_trial={do_trial} ===")
+    print(f"\n=== Preprocessing for {channel_types} | do_ica={do_ica}")
     if do_preprocessing:
         print("\n[PREPROCESSING] Parameters:")
         print(f"  - l_freq      = {l_freq}")
@@ -229,144 +185,53 @@ def preprocess_and_make_trials(
         print(f"  - ica_method  = {ica_method}")
         print(f"  - random_state= {random_state}")
         print("")
+   
+    print(f"Processing {data_file}...")
 
-    data_files = [
-        f for f in os.listdir(raw_dir) 
-        if not f.startswith('.') # skip hidden files
-    ]
-    if not data_files:
-        print(f"No files found in {raw_dir}. Skipping.")
-        return
+    file_path = os.path.join(raw_dir, data_file)
 
-    pbar = tqdm(data_files, desc="Processing files")
-    for data_file in pbar:
-        pbar.set_description(f"Processing {data_file[:15]}...")
+    # -------------------------
+    # 1) Load & Filter
+    # -------------------------
+    raw = mne.io.read_raw(file_path, preload=True, allow_maxshield=True)
+    if do_preprocessing:
+        freqs = [notch_freq * i for i in range(1, 5)]
+        raw.notch_filter(freqs=freqs)
+        raw.filter(l_freq=l_freq, h_freq=None, fir_design='firwin')
+        raw.filter(l_freq=None, h_freq=h_freq, fir_design='firwin')
 
-        # Parse out subj_ses_run from the filename (assuming subj_ses_run_*.fif)
-        try:
-            subj, ses, run = data_file.split('_')[:3]
-        except ValueError:
-            print(f"File name {data_file} not in expected subj_ses_run format. Skipping.")
-            continue
+    # -------------------------
+    # 2) Save entire preprocessed data as FIF
+    # -------------------------
+    _save_preprocessed_raw_fif(raw, config.preproc_dir, data_file) # whatever you were, you are fif now
 
-        print(f"\n--- Processing File: {data_file} (subj={subj}, ses={ses}, run={run}) ---")
-        file_path = os.path.join(raw_dir, data_file)
-
-        # -------------------------
-        # 1) Load & Filter
-        # -------------------------
-        raw = mne.io.read_raw(file_path, preload=True, allow_maxshield=True)
-        if do_preprocessing:
-            freqs = [notch_freq * i for i in range(1, 5)]
-            raw.notch_filter(freqs=freqs)
-            raw.filter(l_freq=l_freq, h_freq=None, fir_design='firwin')
-            raw.filter(l_freq=None, h_freq=h_freq, fir_design='firwin')
-
-        # -------------------------
-        # 2) Save entire preprocessed data as FIF
-        # -------------------------
-        _save_preprocessed_raw_fif(raw, core_path, subj, ses, run) # whatever you were, you are fif now
-
-        # -------------------------
-        # 3) ICA (optional)
-        # -------------------------
-        if do_ica and channel_types:
-            print("[INFO] Running ICA ...")
-            for ch_type in channel_types:
-                if ch_type:
-                    _fit_and_save_ica(
-                        raw=raw,
-                        ica_save_path=ica_dir,
-                        ica_name = f"{subj}_{ses}_{run}_{ch_type}_ica.fif",
-                        channel_type=ch_type,
-                        n_components=n_components,
-                        method=ica_method,
-                        random_state=random_state
-                    )
-        # -------------------------
-        # 4) Answers (optional)
-        # -------------------------
-        if do_ans:
-            cmds = []
-            if channel_types:
-                cmds.append('meeg')
-            if do_ica:
-                cmds.append('ica')
-            answer_data = layeggs.makeAns(cmds, answer_file)
-        # -------------------------
-        # 5) Trials (optional)
-        # -------------------------
-        if do_trial:
-            print("[INFO] Generating Trials ...")
-            trial_db_path = os.path.join(core_path, "index_db", "trials.db")
-            _init_trial_db(trial_db_path)
-            conn = sqlite3.connect(trial_db_path)
-            try:
-                for version in range(n_versions):
-                    for ch_type in channel_types:
-                        if ch_type == 'eeg':
-                            badC_EEG = answer_data.get("badC_EEG", {})
-                            bad_channels = badC_EEG.get(subj, {}).get(ses, {}).get(run, [])
-                        else:
-                            badC_MEG = answer_data.get("badC_MEG", {})
-                            all_meg_bad = badC_MEG.get(subj, {}).get(ses, {}).get(run, [])
-                            if ch_type == 'mag':
-                                bad_channels = [ch for ch in all_meg_bad if ch.endswith('1')]
-                            elif ch_type == 'grad':
-                                bad_channels = [ch for ch in all_meg_bad if ch.endswith(('2','3'))]
-                            else:
-                                bad_channels = []
-
-                        for _ in range(trials_per_file):
-                            chs_to_display, bad_chans_in_display = _select_and_shuffle_channels(
-                                raw=raw,
-                                bad_channels=bad_channels,
-                                channel_type=ch_type,
-                                total_channels=total_channels,
-                                max_bad_channels=max_bad_channels,
-                                min_bad_channels=min_bad_channels
-                            )
-
-                            if chs_to_display is None:
-                                print(f"[WARNING] Skipping trial for {subj}_{ses}_{run}_{ch_type} (not enough bad channels).")
-                                continue
-
-                            # # Unique ID from (subj, ses, run, ch_type, version, channel names)
-                            trial_id = f"{subj}_{ses}_{run}_{ch_type}_v{version+1}_{hash(tuple(chs_to_display)):x}"
-
-                            conn.execute("""
-                                INSERT OR IGNORE INTO trials 
-                                (trial_id, subj, ses, run, ch_type, version, chs2display, bad_channels)
-                                VALUES (?,?,?,?,?,?,?,?)
-                            """, (
-                                trial_id,
-                                subj,
-                                ses,
-                                run,
-                                ch_type,
-                                version+1,
-                                pickle.dumps(chs_to_display),
-                                pickle.dumps(bad_chans_in_display)
-                            ))
-                conn.commit()
-            finally:
-                conn.close()
-            print(f"[INFO] {n_versions*len(channel_types)*trials_per_file} trial files created")
-
-        # Save dataset-level config each iteration (overwrites each time with current info).
-        dataset_config = {
-            "sfreq": raw.info["sfreq"],
-            "n_channels": len(raw.info["ch_names"]),
-            "do_preprocessing": do_preprocessing,
-            "l_freq": l_freq if do_preprocessing else None,
-            "h_freq": h_freq if do_preprocessing else None,
-            "notch_freq": notch_freq if do_preprocessing else None,
-            "ica_method": ica_method if do_ica else None,
-            "n_components": n_components if do_ica else None,
-            "random_state": random_state if do_ica else None,
-            "answer_file": answer_file if do_trial else None
-        }
-        _save_dataset_config(core_path, dataset_config)
-
+    # -------------------------
+    # 3) ICA (optional)
+    # -------------------------
+    if do_ica and channel_types:
+        print("[INFO] Running ICA ...")
+        for ch_type in channel_types:
+            if ch_type:
+                _fit_and_save_ica(
+                    raw=raw,
+                    ica_save_path=ica_dir,
+                    ica_name = f"{data_file[:-4]}_ica.fif",
+                    channel_type=ch_type,
+                    n_components=n_components,
+                    method=ica_method,
+                    random_state=random_state
+                )
+    # -------------------------
+    # 4) Answers (optional)
+    # -------------------------
+    if do_ans:
+        cmds = []
+        if channel_types:
+            cmds.append('meeg')
+        if do_ica:
+            cmds.append('ica')
+        answer_data = layeggs.makeAns(cmds, answer_file, data_file, pick_bad_channels, pick_bad_components)
+        
+        json.dump(answer_data, open(os.path.join(config.answer_dir, answer_file), "w"))
+    
     print(f"[DONE] All requested processing complete.")
-    print("[DONE] You can now remove or archive the raw files if desired.")
