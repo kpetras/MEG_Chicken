@@ -36,33 +36,8 @@ def compute_dprime(hits, false_alarms, misses, correct_rejections):
     # crit = (zHit + zFA) / -2
     # crit_prime = crit / dprime    
     return dprime
-# -----------------------------------------
-#           Everything Dataset
-# -----------------------------------------
-def scan_directories(scan_answers=False):
-    """
-    Scans stuffs
-    """
-    if scan_answers:
-        data_root = os.path.join("data", "answer")
-        try:
-            all_items = os.listdir(data_root)
-        except FileNotFoundError:
-            messagebox.showerror("Error", f"Answer directory '{data_root}' not found.")
-            return []
-        return [item for item in all_items if item.endswith(".json")]
-    
-    else:
-        data_root = "data"
-        excluded_dirs = config.exclude_dirs
-        try:
-            all_items = os.listdir(data_root)
-        except FileNotFoundError:
-            messagebox.showerror("Error", f"Data folder '{data_root}' not found.")
-            return []
-        
-        return [item for item in all_items if os.path.isdir(os.path.join(data_root, item)) and item not in excluded_dirs]
 
+    
 def _get_dataset_config(dataset_name):
     config_file = os.path.join("data", dataset_name, "core_data", "dataset_config.json")
     if not os.path.exists(config_file):

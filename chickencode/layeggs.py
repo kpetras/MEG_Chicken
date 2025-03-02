@@ -31,65 +31,13 @@ def get_unique_filename(base_path):
             return candidate_path
         i += 1
 
-def merge_bad_dicts(old_dict, new_dict):
-    """
-    If the user want to build on an existing answer dict, we merge them
-    ICA: storage_dict[subj][ses][run][ch_type] = []
-    MEEG: storage_dict[subj][ses][run] = []
-    """
-    expected_keys = {"badC_EEG", "badC_MEG", "ICA_remove_inds"}
-    # Check if old_dict has valid structure
-    if not isinstance(old_dict, dict):
-        print("[WARNING] Your json file does not have the correct structure. Merge skipped.")
-        return old_dict
-    
-    for key in expected_keys:
-        if key in old_dict and not isinstance(old_dict[key], dict):
-            print(f"[WARNING] Your json file's key {key} does not follow the expected structure. Merge skipped.")
-            return old_dict
-        
-     # Merge top-level keys: "badC_EEG", "badC_MEG", "ICA_remove_inds"
-    for key in new_dict:
-        if key not in old_dict:
-            old_dict[key] = new_dict[key]
-            continue
-        if key in ("badC_EEG", "badC_MEG"):
-            # structure: old_dict[key][subj][ses][run] => list
-            for subj, subj_data in new_dict[key].items():
-                if subj not in old_dict[key]:
-                    old_dict[key][subj] = subj_data
-                    continue
-                for ses, ses_data in subj_data.items():
-                    if ses not in old_dict[key][subj]:
-                        old_dict[key][subj][ses] = ses_data
-                        continue
-                    for run, run_bads in ses_data.items():
-                        if run not in old_dict[key][subj][ses]:
-                            old_dict[key][subj][ses][run] = run_bads
-                        else:
-                            old_dict[key][subj][ses][run].extend(run_bads)
-        elif key == "ICA_remove_inds":
-            # structure: old_dict["ICA_remove_inds"][subj][ses][run][ch_type] => list
-            for subj, subj_data in new_dict[key].items():
-                if subj not in old_dict[key]:
-                    old_dict[key][subj] = subj_data
-                    continue
-                for ses, ses_data in subj_data.items():
-                    if ses not in old_dict[key][subj]:
-                        old_dict[key][subj][ses] = ses_data
-                        continue
-                    for run, run_dict in ses_data.items():
-                        if run not in old_dict[key][subj][ses]:
-                            old_dict[key][subj][ses][run] = run_dict
-                            continue
-                        # now run_dict => { ch_type => [excluded comps] }
-                        for ch_type, comps_list in run_dict.items():
-                            if ch_type not in old_dict[key][subj][ses][run]:
-                                old_dict[key][subj][ses][run][ch_type] = comps_list
-                            else:
-                                old_dict[key][subj][ses][run][ch_type].extend(comps_list)
-
-    return old_dict                            
+def merge_bad_dicts(dict, addition):
+    for key, value in addition.items():
+        if key in dict:
+            dict[key] = list(set(dict[key] + value))
+        else:
+            dict[key] = value
+    return dict                            
 
 def read_meeg_bad_channels(bad_dict, data_file):
     """
@@ -106,18 +54,22 @@ def read_meeg_bad_channels(bad_dict, data_file):
     all_bads = raw.info['bads']
     print("raw.info['bads']", all_bads)
     eeg_bads = []
-    meg_bads = []
+    grad_bads = []
+    mag_bads = []
     for ch_name in all_bads:
         if ch_name.startswith("EEG"):
             eeg_bads.append(ch_name)
-        elif ch_name.startswith("MEG"):
-            meg_bads.append(ch_name)
+        elif ch_name.startswith("MEG") and ch_name.endswith('1'):
+            mag_bads.append(ch_name)
+        elif ch_name.startswith("MEG") and ch_name.endswith(('2', '3')):
+            grad_bads.append(ch_name)
 
     # if eeg_bads: create the structure even if there's no bads
     bad_dict["badC_EEG"].extend(eeg_bads)
 
     # if meg_bads: create the structure even if there's no bads
-    bad_dict["badC_MEG"].extend(meg_bads)
+    bad_dict["badC_MAG"].extend(mag_bads)
+    bad_dict["badC_GRAD"].extend(grad_bads)
 
     return bad_dict
 
@@ -194,7 +146,8 @@ def makeAns(cmds,answer_file, data_file, pick_bad_channels=True, pick_bad_compon
 
     bad_dict_new = {
         "badC_EEG": [],
-        "badC_MEG": [],
+        "badC_MAG": [],
+        "badC_GRAD": [],
         "ICA_remove_inds_eeg": [],
         "ICA_remove_inds_mag": [],
         "ICA_remove_inds_grad": [],
@@ -217,18 +170,19 @@ def makeAns(cmds,answer_file, data_file, pick_bad_channels=True, pick_bad_compon
     if not cmds:
         print("No commands specified. Usage example: `python script.py MEEG ICA`. Exiting.")
         return
-
-    # Read existing JSON file (that might be empty) and add to it
-    with open(answer_file, 'r', encoding='utf-8') as jf:
-        file_content = jf.read().strip()
-        if not file_content:  # Check if file is empty
-            print("[WARNING] Existing JSON file is empty. Using an empty dictionary.")
-            return
-        else:
-            bad_dict_old = json.loads(file_content) 
-    merged_dict = merge_bad_dicts(bad_dict_old, bad_dict_new)
     
-    return merged_dict
+    
+    # Read existing JSON file (that might be empty) and add to it
+    with open(os.path.join(config.answer_dir, answer_file), 'r', encoding='utf-8') as jf:
+        file_content = jf.read().strip()
+        if file_content:  # Ensure it's not empty
+            bad_dict_old = json.loads(file_content)
+        else:
+            bad_dict_old = {}  # Default to an empty dictionary
+        merged_dict = merge_bad_dicts(bad_dict_old, bad_dict_new)
+    
+    with open(os.path.join(config.answer_dir, answer_file), "w", encoding="utf-8") as jf:       
+        json.dump(merged_dict, jf)
 
 
 

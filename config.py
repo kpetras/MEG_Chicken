@@ -1,8 +1,12 @@
 # config.py
 import os
 # Directories
+data_dir = 'data'
 raw_dir = os.path.join('data', 'raw')
+ica_dir = os.path.join('data', 'ica')
+
 res_dir = os.path.join('data', 'results')
+preproc_dir = os.path.join('data', 'preproc')
 session_dir = os.path.join('data', 'session_data')
 answer_dir = os.path.join('data', 'answer')
 exclude_dirs = [os.path.basename(raw_dir), 
@@ -24,8 +28,6 @@ h_freq = 80.0  # Low-pass filter cutoff (default=80 Hz)
 notch_freq = 50.0  # Base notch filter frequency (default=50 Hz)
 
 # Trial settings
-n_versions = 3  # Number of trial-version repeats (default=3)
-trials_per_file = 5  # Trials per version per channel_type (default=5)
 total_channels = 15  # Number of channels in each snippet (default=15)
 max_bad_ch = 3  # Max bad channels forced in snippet (default=3)
 min_bad_ch = 1  # Min bad channels forced in snippet (default=1)

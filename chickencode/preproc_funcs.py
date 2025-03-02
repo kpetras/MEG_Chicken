@@ -230,8 +230,8 @@ def prepare_chickenrun(
             cmds.append('meeg')
         if do_ica:
             cmds.append('ica')
-        answer_data = layeggs.makeAns(cmds, answer_file, data_file, pick_bad_channels, pick_bad_components)
+        layeggs.makeAns(cmds, answer_file, data_file, pick_bad_channels, pick_bad_components)
         
-        json.dump(answer_data, open(os.path.join(config.answer_dir, answer_file), "w"))
+        
     
     print(f"[DONE] All requested processing complete.")
