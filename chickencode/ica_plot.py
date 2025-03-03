@@ -20,7 +20,7 @@ _INTERPOLATION_DEFAULT = "cubic"
 _EXTRAPOLATE_DEFAULT = "auto"
 
 
-def custome_ica_plot(
+def custom_ica_plot(
     ica,
     ICA_remove_inds_list,
     feedback = False,

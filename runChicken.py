@@ -15,7 +15,7 @@ import random
 
 from functools import partial
 from chickencode import run_funcs
-from chickencode.ica_plot import custome_ica_plot
+from chickencode.ica_plot import custom_ica_plot
 from chickencode.FeedbackWindow import FeedbackWindow, TrialEndWindow
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
@@ -210,7 +210,7 @@ class MEG_Chicken:
             datafile, badIndeces, datatype = self.make_next_trial()
             if self.mode_var.get() == "components":
                 self.show_ica_trial( datafile, trialNR, nTrials, badIndeces, datatype)
-            else:
+            elif self.mode_var.get() == "channels":
                 self.show_channel_trial( trialNR, badIndeces)
 
     def make_next_trial(self):
@@ -250,7 +250,7 @@ class MEG_Chicken:
         ica = mne.preprocessing.read_ica(os.path.join(full_path, datafile) + "_ica.fif")
         raw_data = mne.io.read_raw_fif(os.path.join(config.raw_dir, datafile + ".fif"), preload=True)
         
-        fig = custome_ica_plot(
+        fig = custom_ica_plot(
                 ica,
                 ICA_remove_inds_list=bad_components,
                 feedback=self.feedback_var.get(),
@@ -262,10 +262,31 @@ class MEG_Chicken:
                 title=f"Trial {trialNR}/{nTrials} - {ch_type_dir}, click here to answer"
             )
         
-        ica.plot_sources(title=f"Trial {trialNR}/{nTrials} - {ch_type_dir}", 
+        selected_channels = set()
+        def on_pick(event):
+            artist = event.artist
+            if isinstance(artist, plt.Text):
+                ch_name = artist.get_text()
+                ch_names = ica._ica_names
+                ch_index = ch_names.index(ch_name)
+                if ch_name in ch_names:
+                    if ch_index in bad_components:
+                        if self.deselect_var.get():
+                            selected_channels.remove(ch_name)
+                            if self.feedback_var.get():
+                                is_correct = (ch_name not in bad_components)
+                                FeedbackWindow(self.window, is_correct)
+                    else:
+                        selected_channels.add(ch_name)
+                        if self.feedback_var.get():
+                            is_correct = (ch_name in bad_components)
+                            FeedbackWindow(self.window, is_correct)
+
+        fig2 = ica.plot_sources(title=f"Trial {trialNR}/{nTrials} - {ch_type_dir}", 
                 inst = raw_data,
                 show = False)
-
+        cid_pick = fig2.canvas.mpl_connect('pick_event', on_pick)
+           
         trial_start_time = time.time()
         selected_comps = set()
         def on_close_ica_fig(event):
