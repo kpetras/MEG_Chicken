@@ -1,4 +1,4 @@
-from scipy.stats import norm
+
 import os
 import random
 from tkinter import messagebox
@@ -7,36 +7,12 @@ import mne
 import sqlite3
 import pickle
 import config
+from chickencode.FeedbackWindows import FeedbackWindow, TrialEndWindow
+import matplotlib.pyplot as plt
+import matplotlib
 # -----------------------------------------
 #           Everything Calculation
 # -----------------------------------------
-def compute_dprime(hits, false_alarms, misses, correct_rejections):
-    """
-    Compute d-prime based on hits/misses/false alarms/correct rejections.
-    
-    D-prime = Z(HR) - Z(FAR)
-    Where:
-    hit rate (HR) = hits / (hits + misses)
-    false alarm rate (FAR) = false_alarms / (false_alarms + correct_rejections)
-
-    However, here we used the adjusted hit rate and false alarm rate (Hautus, 1995)(Stanislaw & Todorov, 1999)
-    with  hit rate adjusted = (hits + 0.5)/(hits + misses + 1)
-    and   false alarm rate adjusted = (false_alarms + 0.5) / (false_alarms + correct_rejections + 1)
-    """
-    total_signal = hits + misses # Pos
-    total_noise  = false_alarms + correct_rejections # Negs
-    pHit_adj = (hits + 0.5) / (total_signal + 1)
-    pFA_adj  = (false_alarms + 0.5)/ (total_noise + 1)
-
-    # Convert to Z scores, no error checking
-    zHit = norm.ppf(pHit_adj)
-    zFA = norm.ppf(pFA_adj)
-    dprime = zHit - zFA
-
-    # crit = (zHit + zFA) / -2
-    # crit_prime = crit / dprime    
-    return dprime
-
     
 def _get_dataset_config(dataset_name):
     config_file = os.path.join("data", dataset_name, "core_data", "dataset_config.json")
@@ -104,7 +80,6 @@ def load_preprocessed_raw_all_channels(dataset_name, subj, ses, run):
         return None
     return mne.io.read_raw_fif(fif_path, preload=True, allow_maxshield=True)
 
-
 def load_ica_files(dataset_name, channel_types):
     all_icas = []
     ica_dir = os.path.join("data", dataset_name, "ica")
@@ -141,11 +116,109 @@ def load_ica_files(dataset_name, channel_types):
                 all_icas.append(ica_info)
     return all_icas
 
-# -----------------------------------------
-#           Everything Trials
-# -----------------------------------------
-def pick_random_trials(trials_list, n_trial):
-    random.shuffle(trials_list)
-    if len(trials_list) <= n_trial:
-        return trials_list
-    return random.sample(trials_list, n_trial)
+class session_handler():
+    def __init__(self, mode, nTrials, instantfeedback, master_window):
+        # Current trial
+        self.bad_candidates = []
+        self.bad_candidates_shown = []
+        self.selected_candidates = set()
+        self.candidates_shown = []
+        self.all_candidate_names = []
+        self.topo_window_closed = False
+        self.source_window_closed = False
+        self.mode = mode
+        self.master_window = master_window
+        self.instantfeedback = instantfeedback
+        # Session Statistics
+        self.hits = 0
+        self.false_alarms = 0
+        self.misses = 0
+        self.correct_rejections = 0
+        self.missed_channels = []
+        self.nTrials = nTrials     
+
+    def set_trial_vars(self, trialNR, all_candidate_names, bad_candidates_shown):
+        self.all_candidate_names = all_candidate_names
+        self.bad_candidates_shown = bad_candidates_shown
+        self.trialNR = trialNR
+    
+    def add_windows(self, topo_window, source_window):
+        self.topo_window = topo_window
+        self.source_window = source_window
+
+        self.topo_window.canvas.mpl_connect('button_press_event', self.on_candidate_picked)
+        self.topo_window.canvas.mpl_connect('close_event', self.on_topo_window_close)
+        self.source_window.canvas.mpl_connect('pick_event', self.on_candidate_picked)
+        self.source_window.canvas.mpl_connect('close_event', self.on_source_window_close)   
+        self.source_window_closed = False
+        self.topo_window_closed = False
+
+    def on_topo_window_close(self, event):
+        self.topo_window_closed = True
+        if self.source_window_closed:
+            #show end screen
+            self.on_all_windows_closed()
+
+    def on_source_window_close(self, event):
+        self.source_window_closed = True
+        if self.mode == "channels":
+            self.on_all_windows_closed()
+        if self.topo_window_closed:
+            #show end screen
+            self.on_all_windows_closed()
+
+    def on_all_windows_closed(self): 
+        self.false_alarms = len(self.selected_candidates - set(self.bad_candidates_shown))
+        missed_channels = set(self.bad_candidates_shown) - self.selected_candidates
+        self.missesmisses = len(missed_channels)
+        n_components = config.ica_components
+        self.correct_rejections = n_components - len(set(self.bad_candidates_shown) | self.selected_candidates)
+        summary_window = TrialEndWindow(
+            trial_idx=self.trialNR,
+            hits=self.hits,
+            false_alarms=self.false_alarms,
+            misses=self.misses,
+            correct_rejections=self.correct_rejections,
+            missed_channels = self.missed_channels
+            )
+        if summary_window.user_wants_quit:
+            self.user_wants_to_quit = True
+
+    def on_candidate_picked(self, event):
+
+        #picked a source in the source window
+        if isinstance(event, matplotlib.backend_bases.PickEvent):
+            artist = event.artist         
+            ch_name = artist.get_text()
+        #is not a click on topo plot 
+        elif not event.inaxes:
+            #ch_name = event.inaxes.get_label()
+            # Check for title click
+            for figure in self.topo_window.axes:  # Loop over all figures in the window
+                #check if label overlaps (with a bit of margin)
+                if ((event.x >= figure.bbox.min[0]) and 
+                (event.x <= figure.bbox.max[0]) and 
+                (event.y >= figure.bbox.min[1]) and 
+                (event.y <= figure.bbox.max[1] + 30)): #somehow the bounding box doesn't include the title
+                    ch_name = figure.get_label()
+                    break
+        #user clicked somewhere unanticipated
+        else:            
+            return
+        #evaluate
+        ch_index = self.all_candidate_names.index(ch_name)
+        is_correct = ch_index in self.bad_candidates_shown
+        if ch_name in self.selected_candidates:   
+            #it's correct to remove an incorrect candidate and vice versa         
+            is_correct = not is_correct                    
+            self.selected_candidates.remove(ch_name)
+            if self.instantfeedback:                    
+                FeedbackWindow(self.master_window, is_correct)
+        else:
+            self.selected_candidates.add(ch_name)
+            if self.instantfeedback:
+                FeedbackWindow(self.master_window, is_correct)
+        if is_correct:
+            self.hits += 1
+        else:
+            self.false_alarms += 1

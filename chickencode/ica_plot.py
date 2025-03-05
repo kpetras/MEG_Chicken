@@ -11,17 +11,16 @@ from mne.channels.layout import _merge_ch_data
 from mne.epochs import BaseEpochs
 from mne.io import BaseRaw
 
-from .FeedbackWindow import FeedbackWindow
-
+from .FeedbackWindows import FeedbackWindow
 
 # straight from defaults
 _BORDER_DEFAULT = "mean"
 _INTERPOLATION_DEFAULT = "cubic"
 _EXTRAPOLATE_DEFAULT = "auto"
 
-
 def custom_ica_plot(
     ica,
+    session,
     ICA_remove_inds_list,
     feedback = False,
     deselect =  False,
@@ -262,8 +261,7 @@ def custom_ica_plot(
         del pos
         fig.canvas.draw()
 
-        # add title selection interactivity
-        def onclick_title(event, ica=ica, titles=subplot_titles, fig=fig):
+        def onclick_title(event, ica=ica, titles=subplot_titles):
             # check if any title was pressed
             title_pressed = None
             for title in titles:
@@ -276,26 +274,14 @@ def custom_ica_plot(
                 ic = int(label.split(" ")[0][-3:])
                 # add or remove IC from exclude depending on current state
                 if ic in ica.exclude:
-                    if deselect:
-                        ica.exclude.remove(ic)
-                        title_pressed.set_color("k")
-                        if feedback and master is not None:
-                            is_correct = (ic in ICA_remove_inds_list)
-                            FeedbackWindow(master, is_correct)
-                    else:
-                        # if deselect is not allowed we still keep the ica in list
-                        pass
+                    ica.exclude.remove(ic)
+                    title_pressed.set_color("k")
                 else:
                     ica.exclude.append(ic)
                     title_pressed.set_color("gray")
-                    if feedback and master is not None:
-                        is_correct = (ic in ICA_remove_inds_list)
-                        FeedbackWindow(master, is_correct)
-
-                fig.canvas.draw()
 
         fig.canvas.mpl_connect("button_press_event", onclick_title)
-
+       
         # add plot_properties interactivity only if inst was passed
         #if isinstance(inst, BaseRaw | BaseEpochs):
         if isinstance(inst,(BaseRaw, BaseEpochs)):

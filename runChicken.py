@@ -11,12 +11,14 @@ import matplotlib
 import matplotlib.pyplot as plt
 import warnings
 import config
+import copy
 import random
 
 from functools import partial
 from chickencode import run_funcs
 from chickencode.ica_plot import custom_ica_plot
-from chickencode.FeedbackWindow import FeedbackWindow, TrialEndWindow
+from chickencode.FeedbackWindows import FeedbackWindow, TrialEndWindow
+
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 # ============ MNE Matplotlib settings ============
@@ -206,12 +208,20 @@ class MEG_Chicken:
     def run_trials(self):
         """ Run the trials. """
         nTrials = 20
+
+        self.current_session = run_funcs.session_handler(
+            master_window=self.window,
+            mode=self.mode_var.get(),
+            nTrials=nTrials,
+            instantfeedback=self.feedback_var.get()
+        )
+        
         for trialNR in range(nTrials):
-            datafile, badIndeces, datatype = self.make_next_trial()
+            datafile, badIndeces, datatype = self.make_next_trial()            
             if self.mode_var.get() == "components":
-                self.show_ica_trial( datafile, trialNR, nTrials, badIndeces, datatype)
+                self.show_ica_trial(datafile, trialNR, nTrials, badIndeces, datatype)
             elif self.mode_var.get() == "channels":
-                self.show_channel_trial( trialNR, badIndeces)
+                self.show_channel_trial(datafile, trialNR, badIndeces, badIndeces, datatype)
 
     def make_next_trial(self):
         """ Make the next trial. """
@@ -224,22 +234,45 @@ class MEG_Chicken:
             datafile = random.choice(list(self.allowed_trials.keys()))
             max_iter -= 1
 
-        if self.mode_var.get() == "components":
-            
-            # =======================================================
-            #                    ICA mode 
-            # =======================================================
+        answer_data_path = os.path.join(config.answer_dir, datafile + ".json")
+        with open(answer_data_path, 'r') as file:
+            answer_data = json.load(file)
+        bad_indeces = answer_data.get(picked_type, {})        
 
-            # Answers
-            answer_data_path = os.path.join(config.answer_dir, datafile + ".json")
-            with open(answer_data_path, 'r') as file:
-                answer_data = json.load(file)
-            bad_indeces = answer_data.get(picked_type, {})
         return datafile, bad_indeces, picked_type
 
-    def show_ica_trial(self, datafile, trialNR, nTrials, bad_components, datatype):
-        """ Show the trial. """
-        # Load the data
+    def generate_picks(self, bad_candidates, max_candidates):
+        picks = []
+        # Set a random amount of bad components to show              
+        amount_of_bad_components = random.randint(1, len(bad_candidates))
+        bad_components_to_show = []
+        # Randomly select the bad components
+        i = 0
+        max_iter = 100
+        while i < (amount_of_bad_components) and max_iter > 0:
+            random_index = random.randint(0, len(bad_candidates) - 1)
+            if not bad_candidates[random_index] in bad_components_to_show:
+                bad_components_to_show.append(bad_candidates[random_index])
+                picks.append(bad_candidates[random_index])
+                i+=1
+            max_iter -= 1
+            if max_iter == 0:
+                print("Warning, could not find enough bad components")
+
+        # fill the rest with random components
+        max_iter = 100
+        while not len(picks) == 10:
+            random_index = random.randint(0, max_candidates - 1)
+            if not random_index in picks and not random_index in bad_candidates:
+                picks.append(random_index)
+            max_iter -= 1
+            if max_iter == 0:
+                print("Warning, could not find enough random trials")
+        #shuffle the picks
+        random.shuffle(picks)    
+        return picks, bad_components_to_show
+    
+    def load_trial_data(self, datafile, datatype):
         if datatype == 'ICA_remove_inds_eeg':
             ch_type_dir = 'eeg'
         elif datatype == 'ICA_remove_inds_mag':
@@ -249,95 +282,39 @@ class MEG_Chicken:
         full_path = os.path.join(config.ica_dir, ch_type_dir)
         ica = mne.preprocessing.read_ica(os.path.join(full_path, datafile) + "_ica.fif")
         raw_data = mne.io.read_raw_fif(os.path.join(config.raw_dir, datafile + ".fif"), preload=True)
-        
+        return ica, raw_data
+    
+    def show_ica_trial(self, datafile, trialNR, nTrials, bad_components, datatype):        
+        # Load the data
+        ica, raw_data = self.load_trial_data(datafile, datatype)
+        # determine picks
+        picks, bad_components_shown = self.generate_picks(bad_components, len(ica._ica_names))    
+
+        self.current_session.set_trial_vars( trialNR, ica._ica_names, bad_components_shown )
         fig = custom_ica_plot(
                 ica,
+                session=self.current_session,
                 ICA_remove_inds_list=bad_components,
                 feedback=self.feedback_var.get(),
                 deselect=self.deselect_var.get(),
                 inst=raw_data,
+                picks=picks,
                 nrows=5,
                 ncols=10,
                 master=self.window,
-                title=f"Trial {trialNR}/{nTrials} - {ch_type_dir}, click here to answer"
-            )
-        
-        selected_channels = set()
-        def on_pick(event):
-            artist = event.artist
-            if isinstance(artist, plt.Text):
-                ch_name = artist.get_text()
-                ch_names = ica._ica_names
-                ch_index = ch_names.index(ch_name)
-                if ch_name in ch_names:
-                    if ch_index in bad_components:
-                        if self.deselect_var.get():
-                            selected_channels.remove(ch_name)
-                            if self.feedback_var.get():
-                                is_correct = (ch_name not in bad_components)
-                                FeedbackWindow(self.window, is_correct)
-                    else:
-                        selected_channels.add(ch_name)
-                        if self.feedback_var.get():
-                            is_correct = (ch_name in bad_components)
-                            FeedbackWindow(self.window, is_correct)
+                title=f"Trial {trialNR}/{nTrials} - {datatype}, click here to answer"
+            )            
 
-        fig2 = ica.plot_sources(title=f"Trial {trialNR}/{nTrials} - {ch_type_dir}", 
+        fig2 = ica.plot_sources(title=f"Trial {trialNR}/{nTrials} - {datatype}", 
                 inst = raw_data,
-                show = False)
-        cid_pick = fig2.canvas.mpl_connect('pick_event', on_pick)
-           
-        trial_start_time = time.time()
-        selected_comps = set()
-        def on_close_ica_fig(event):
-            """When the ICA figure is closed, finalize the trial metrics."""
-            trial_end_time = time.time()
-            fig.canvas.mpl_disconnect(cid_close)
-            plt.close(fig)
+                picks = picks,
+                show = False)        
 
-            selected_comps.update(ica.exclude)
-            hits = len(set(bad_components) & selected_comps)
-            false_alarms = len(selected_comps - set(bad_components))
-            missed_channels = set(bad_components) - selected_comps
-            misses = len(missed_channels)
-            n_components = config.ica_components
-            correct_rejections = n_components - len(set(bad_components) | selected_comps)
-
-            denom = hits + false_alarms + misses + correct_rejections
-            accuracy = (hits + correct_rejections) / denom if denom > 0 else 0
-            summary_window = TrialEndWindow(
-            master=self.window,
-            trial_idx=trialNR,
-            hits=hits,
-            false_alarms=false_alarms,
-            misses=misses,
-            correct_rejections=correct_rejections,
-            missed_channels = missed_channels
-            )
-            if summary_window.user_wants_quit:
-                self.user_wants_to_quit = True
-            
-            row_dict = {
-                'Trial': trialNR,
-                'StartTime_s': trial_start_time,
-                'EndTime_s': trial_end_time,
-                'ChannelType': ch_type_dir,
-                'SelectedChannels': ",".join(str(x) for x in sorted(selected_comps)),
-                'BadChannels': ",".join(str(x) for x in sorted(bad_components)),
-                'Hits': hits,
-                'FalseAlarms': false_alarms,
-                'Misses': misses,
-                'CorrectRejections': correct_rejections,
-                'Accuracy': accuracy,
-                'D-Prime': run_funcs.compute_dprime(hits, false_alarms, misses, correct_rejections)
-            }
-            #self._append_result_to_csv(row_dict, output_csv)
-
-        cid_close = fig.canvas.mpl_connect('close_event', on_close_ica_fig)
+        self.current_session.add_windows(fig, fig2)        
         plt.show(block=True)
 
     def show_channel_trial(self, trial):
-        """ Show the trial. """
+        """ Show the trial. 'badC_EEG' """
         fig = trial_data.plot(
                             n_channels=n_channels,
                             duration=2,

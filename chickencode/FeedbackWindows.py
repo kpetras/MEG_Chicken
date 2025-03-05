@@ -1,8 +1,8 @@
 import tkinter as tk
 from PIL import Image, ImageTk
 from playsound import playsound
+from scipy.stats import norm
 import os
-from .run_funcs import compute_dprime
 import threading
 
 class FeedbackWindow:
@@ -65,19 +65,16 @@ class TrialEndWindow:
     2) Save and quit
     """
 
-    def __init__(self, master, trial_idx, hits, false_alarms, misses, correct_rejections, missed_channels):
-        self.master = master
-        
-        self.top = tk.Toplevel(self.master)
-        self.top.title("Trial Feedback")
-        self.top.attributes("-topmost", True)
+    def __init__(self, trial_idx, hits, false_alarms, misses, correct_rejections, missed_channels):
+        self.window = tk.Tk() 
+        self.window.title("Trial Feedback")
+        self.window.attributes("-topmost", True)
         # self.top.geometry("500x300+500+300")
 
         self.user_wants_quit = False  # Flag
-
         denom = hits + false_alarms + misses + correct_rejections
         accuracy = (hits + correct_rejections) / denom if denom > 0 else 0
-        dprime = compute_dprime(hits, false_alarms, misses, correct_rejections)
+        dprime = self.compute_dprime(hits, false_alarms, misses, correct_rejections)
         
         if not missed_channels:
             missed_bads = "Missed Bads: None\n"
@@ -96,10 +93,10 @@ class TrialEndWindow:
             f"{missed_bads}"
         )
 
-        self.label_info = tk.Label(self.top, text=info_text, font=("Arial", 14), justify="left")
+        self.label_info = tk.Label(self.window, text=info_text, font=("Arial", 14), justify="left")
         self.label_info.pack(padx=20, pady=20)
 
-        btn_frame = tk.Frame(self.top)
+        btn_frame = tk.Frame(self.window)
         btn_frame.pack(pady=10)
 
         btn_close = tk.Button(btn_frame, text="Close", width=12, command=self._on_close)
@@ -108,14 +105,40 @@ class TrialEndWindow:
         btn_savequit = tk.Button(btn_frame, text="Save & Quit", width=12, command=self._on_save_quit)
         btn_savequit.pack(side="left", padx=5)
 
-        self.top.grab_set()
-        self.top.wait_window(self.top)
+        self.window.grab_set()
+        self.window.wait_window(self.window)
 
+
+    def compute_dprime(hits, false_alarms, misses, correct_rejections):
+        """
+        Compute d-prime based on hits/misses/false alarms/correct rejections.
+        
+        D-prime = Z(HR) - Z(FAR)
+        Where:
+        hit rate (HR) = hits / (hits + misses)
+        false alarm rate (FAR) = false_alarms / (false_alarms + correct_rejections)
+
+        However, here we used the adjusted hit rate and false alarm rate (Hautus, 1995)(Stanislaw & Todorov, 1999)
+        with  hit rate adjusted = (hits + 0.5)/(hits + misses + 1)
+        and   false alarm rate adjusted = (false_alarms + 0.5) / (false_alarms + correct_rejections + 1)
+        """
+        total_signal = hits + misses # Pos
+        total_noise  = false_alarms + correct_rejections # Negs
+        pHit_adj = (hits + 0.5) / (total_signal + 1)
+        pFA_adj  = (false_alarms + 0.5)/ (total_noise + 1)
+
+        # Convert to Z scores, no error checking
+        zHit = norm.ppf(pHit_adj)
+        zFA = norm.ppf(pFA_adj)
+        dprime = zHit - zFA
+
+    # crit = (zHit + zFA) / -2
+    # crit_prime = crit / dprime    
+        return dprime
     def _on_close(self):
-
         self.user_wants_quit = False
-        self.top.destroy()
+        self.window.destroy()
 
     def _on_save_quit(self):
         self.user_wants_quit = True
-        self.top.destroy()
+        self.window.destroy()
