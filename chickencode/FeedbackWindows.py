@@ -109,7 +109,7 @@ class TrialEndWindow:
         self.window.wait_window(self.window)
 
 
-    def compute_dprime(hits, false_alarms, misses, correct_rejections):
+    def compute_dprime(self, hits, false_alarms, misses, correct_rejections):
         """
         Compute d-prime based on hits/misses/false alarms/correct rejections.
         
@@ -135,6 +135,8 @@ class TrialEndWindow:
     # crit = (zHit + zFA) / -2
     # crit_prime = crit / dprime    
         return dprime
+    
+    
     def _on_close(self):
         self.user_wants_quit = False
         self.window.destroy()

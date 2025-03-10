@@ -7,11 +7,9 @@ import matplotlib
 import matplotlib.pyplot as plt
 import config
 import copy
-
 # ============ MNE Matplotlib settings ============
 mne.viz.set_browser_backend('matplotlib')
 matplotlib.use('tkagg')
-
 
 def get_unique_filename(base_path):
     """
@@ -183,8 +181,6 @@ def makeAns(cmds,answer_file, data_file, pick_bad_channels=True, pick_bad_compon
     
     with open(os.path.join(config.answer_dir, answer_file), "w", encoding="utf-8") as jf:       
         json.dump(merged_dict, jf)
-
-
 
 def main():
     parser = argparse.ArgumentParser(

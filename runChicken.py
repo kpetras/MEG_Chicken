@@ -221,7 +221,7 @@ class MEG_Chicken:
             if self.mode_var.get() == "components":
                 self.show_ica_trial(datafile, trialNR, nTrials, badIndeces, datatype)
             elif self.mode_var.get() == "channels":
-                self.show_channel_trial(datafile, trialNR, badIndeces, badIndeces, datatype)
+                self.show_channel_trial(datafile, trialNR, nTrials, badIndeces, datatype)
 
     def make_next_trial(self):
         """ Make the next trial. """
@@ -258,6 +258,7 @@ class MEG_Chicken:
             max_iter -= 1
             if max_iter == 0:
                 print("Warning, could not find enough bad components")
+                break
 
         # fill the rest with random components
         max_iter = 100
@@ -268,29 +269,36 @@ class MEG_Chicken:
             max_iter -= 1
             if max_iter == 0:
                 print("Warning, could not find enough random trials")
+                break
+            
         #shuffle the picks
         random.shuffle(picks)    
         return picks, bad_components_to_show
     
-    def load_trial_data(self, datafile, datatype):
+    def load_component_trial_data(self, datafile, datatype):
         if datatype == 'ICA_remove_inds_eeg':
             ch_type_dir = 'eeg'
         elif datatype == 'ICA_remove_inds_mag':
             ch_type_dir = 'mag'
         elif datatype == 'ICA_remove_inds_grad':
             ch_type_dir = 'grad'
+        #Append channel dir to path and load the data	    
         full_path = os.path.join(config.ica_dir, ch_type_dir)
         ica = mne.preprocessing.read_ica(os.path.join(full_path, datafile) + "_ica.fif")
         raw_data = mne.io.read_raw_fif(os.path.join(config.raw_dir, datafile + ".fif"), preload=True)
         return ica, raw_data
     
+    def load_channel_trial_data(self, datafile):
+        raw_data = mne.io.read_raw_fif(os.path.join(config.preproc_dir, datafile + "_preproc.fif"), preload=True)
+        return raw_data
+
     def show_ica_trial(self, datafile, trialNR, nTrials, bad_components, datatype):        
         # Load the data
-        ica, raw_data = self.load_trial_data(datafile, datatype)
+        ica, raw_data = self.load_component_trial_data(datafile, datatype)
         # determine picks
         picks, bad_components_shown = self.generate_picks(bad_components, len(ica._ica_names))    
 
-        self.current_session.set_trial_vars( trialNR, ica._ica_names, bad_components_shown )
+        self.current_session.init_next_trial( trialNR, ica._ica_names, bad_components_shown )
         fig = custom_ica_plot(
                 ica,
                 session=self.current_session,
@@ -313,15 +321,34 @@ class MEG_Chicken:
         self.current_session.add_windows(fig, fig2)        
         plt.show(block=True)
 
-    def show_channel_trial(self, trial):
-        """ Show the trial. 'badC_EEG' """
-        fig = trial_data.plot(
-                            n_channels=n_channels,
-                            duration=2,
-                            block=False,
-                            picks = chs2display,
-                            title=f"Trial {trial_idx}/{n_trials} - {channel_type}"
+    def show_channel_trial(self, datafile, trialNR, nTrials, bad_channels, datatype):
+        data = self.load_channel_trial_data(datafile)
+
+        picks, bad_channels_shown = self.generate_picks(bad_channels, len(data.info['ch_names']))
+
+        #Find channel names for the picks
+        for ind, pick in enumerate(picks):
+            #if type is int
+            if type(pick) == int:
+                picks[ind] = data.info['ch_names'][ind]        
+        
+        #find indeces for bad channels
+        for ind, bad_channel in enumerate(bad_channels_shown):
+            bad_channels_shown[ind] = data.info['ch_names'].index(bad_channel)
+
+        self.current_session.init_next_trial(trialNR, data.info['ch_names'], bad_channels_shown)
+        data.info['bads'] = []
+        fig = data.plot(
+                        n_channels=len(picks),
+                        duration=2,
+                        block=False,
+                        picks = picks,
+                        title=f"Trial {trialNR}/{nTrials} - {datatype}",
+                        color='b',                    
                         )
+        
+        self.current_session.add_windows(None, fig)   
+        plt.show(block=True)
 
 if __name__ == "__main__":
     app = MEG_Chicken()

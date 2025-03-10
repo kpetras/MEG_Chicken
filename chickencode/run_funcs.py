@@ -137,21 +137,23 @@ class session_handler():
         self.missed_channels = []
         self.nTrials = nTrials     
 
-    def set_trial_vars(self, trialNR, all_candidate_names, bad_candidates_shown):
+    def init_next_trial(self, trialNR, all_candidate_names, bad_candidates_shown):
         self.all_candidate_names = all_candidate_names
         self.bad_candidates_shown = bad_candidates_shown
         self.trialNR = trialNR
     
     def add_windows(self, topo_window, source_window):
-        self.topo_window = topo_window
-        self.source_window = source_window
-
-        self.topo_window.canvas.mpl_connect('button_press_event', self.on_candidate_picked)
-        self.topo_window.canvas.mpl_connect('close_event', self.on_topo_window_close)
-        self.source_window.canvas.mpl_connect('pick_event', self.on_candidate_picked)
-        self.source_window.canvas.mpl_connect('close_event', self.on_source_window_close)   
-        self.source_window_closed = False
-        self.topo_window_closed = False
+        if not topo_window==None:
+            self.topo_window = topo_window
+            self.topo_window.canvas.mpl_connect('button_press_event', self.on_candidate_picked)
+            self.topo_window.canvas.mpl_connect('close_event', self.on_topo_window_close)
+            self.topo_window_closed = False
+            
+        if not source_window==None:   
+            self.source_window = source_window
+            self.source_window.canvas.mpl_connect('pick_event', self.on_candidate_picked)
+            self.source_window.canvas.mpl_connect('close_event', self.on_source_window_close)   
+            self.source_window_closed = False
 
     def on_topo_window_close(self, event):
         self.topo_window_closed = True
@@ -190,22 +192,30 @@ class session_handler():
         if isinstance(event, matplotlib.backend_bases.PickEvent):
             artist = event.artist         
             ch_name = artist.get_text()
-        #is not a click on topo plot 
+            if self.mode == "channels":
+                print(ch_name)
+            elif self.mode == "sources":
+                print(ch_name)
+            else:
+                print("Error: Mode not recognized")
+            
+        #is not a click on topo plot/ in source window 
         elif not event.inaxes:
-            #ch_name = event.inaxes.get_label()
             # Check for title click
             for figure in self.topo_window.axes:  # Loop over all figures in the window
                 #check if label overlaps (with a bit of margin)
                 if ((event.x >= figure.bbox.min[0]) and 
                 (event.x <= figure.bbox.max[0]) and 
                 (event.y >= figure.bbox.min[1]) and 
-                (event.y <= figure.bbox.max[1] + 30)): #somehow the bounding box doesn't include the title
+                #somehow the bounding box of the axes doesn't include the title which you just clicked
+                (event.y <= figure.bbox.max[1] + 20)): 
                     ch_name = figure.get_label()
                     break
         #user clicked somewhere unanticipated
         else:            
             return
         #evaluate
+        
         ch_index = self.all_candidate_names.index(ch_name)
         is_correct = ch_index in self.bad_candidates_shown
         if ch_name in self.selected_candidates:   
@@ -218,6 +228,7 @@ class session_handler():
             self.selected_candidates.add(ch_name)
             if self.instantfeedback:
                 FeedbackWindow(self.master_window, is_correct)
+
         if is_correct:
             self.hits += 1
         else:
