@@ -318,7 +318,7 @@ class MEG_Chicken:
                 picks = picks,
                 show = False)        
 
-        self.current_session.add_windows(fig, fig2)        
+        self.current_session.set_windows(fig, fig2)        
         plt.show(block=True)
 
     def show_channel_trial(self, datafile, trialNR, nTrials, bad_channels, datatype):
@@ -347,7 +347,7 @@ class MEG_Chicken:
                         color='b',                    
                         )
         
-        self.current_session.add_windows(None, fig)   
+        self.current_session.set_windows(None, fig)   
         plt.show(block=True)
 
 if __name__ == "__main__":
