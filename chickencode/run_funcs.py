@@ -320,17 +320,20 @@ class session_handler():
             self.source_window.mne.ch_colors[ind] = color
             self.source_window.mne.traces[ind].set_color(color)
 
-        # to prevent weird mne picking bug always set all label colors to black
-        for label in self.source_window.axes[0].get_yticklabels():                
+        # to prevent weird mne picking bug loop through source window labels seperately
+        for label in self.source_window.axes[0].get_yticklabels():
             label.set_color([0.0, 0.0, 0.0, 1.0])
-
-        self.source_window.canvas.draw_idle()        
-
+            if label.get_text() in self.selected_candidates:
+                label.set_color([0.5, 0.5, 0.5, 1.0])
+                
         # Update topo window titles
         for figure in self.topo_window.axes:
             label = figure.get_label()
             color = 'gray' if label in self.selected_candidates else 'black'
             figure.set_title(label, color=color)
+
+        # Redraw windows
+        self.source_window.canvas.draw_idle()        
         self.topo_window.canvas.draw()
 
         # Update performance metrics
