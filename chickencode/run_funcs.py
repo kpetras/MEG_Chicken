@@ -121,7 +121,7 @@ class session_handler():
         # Current trial
         self.bad_candidates = []
         self.bad_candidates_shown = []
-        self.selected_candidates = set()
+        self.selected_candidates = []
         self.candidates_shown = []
         self.all_candidate_names = []
         self.topo_window_closed = False
@@ -151,6 +151,12 @@ class session_handler():
             
         if not source_window==None:   
             self.source_window = source_window
+            callback_ids = list(self.source_window.canvas.callbacks.callbacks.get('pick_event', []))
+            for id in callback_ids:
+                self.source_window.canvas.mpl_disconnect(id)
+
+            self.source_window.canvas.mpl_connect('button_press_event', self.on_candidate_picked)
+            #self.source_window.canvas.mpl_disconnect(self.source_window.mne._callback_ids['pick_event'])
             self.source_window.canvas.mpl_connect('pick_event', self.on_candidate_picked)
             self.source_window.canvas.mpl_connect('close_event', self.on_source_window_close)   
             self.source_window_closed = False
@@ -186,50 +192,150 @@ class session_handler():
         if summary_window.user_wants_quit:
             self.user_wants_to_quit = True
 
-    def on_candidate_picked(self, event):
+    # def on_candidate_picked(self, event):
+    #     ch_name = ""
+    #     #picked a source in the source window (clicked on title)
+    #     if isinstance(event, matplotlib.backend_bases.PickEvent):
+    #         artist = event.artist         
+    #         ch_name = artist.get_text()
+    #         if self.mode == "components":
+    #         # set text in other window to gray
+    #             for figure in self.topo_window.axes:
+    #                 if figure.get_label() == ch_name:
+    #                     if ch_name in self.selected_candidates:
+    #                         figure.set_title(figure.get_label(), color='black')
+    #                     else:
+    #                          figure.set_title(figure.get_label(), color='gray')
+    #                     break
 
-        #picked a source in the source window
+    #     #clicked in topo window (on title) or source window (on timeseries)
+    #     elif not event.inaxes:
+    #         # Check for title click
+    #         for figure in self.topo_window.axes:  # Loop over all figures in the window
+    #             #check if label overlaps (with a bit of margin)
+    #             if ((event.x >= figure.bbox.min[0]) and 
+    #             (event.x <= figure.bbox.max[0]) and 
+    #             (event.y >= figure.bbox.min[1]) and 
+    #             #somehow the bounding box of the axes doesn't include the title which you just clicked
+    #             (event.y <= figure.bbox.max[1] + 20)): 
+    #                 ch_name = figure.get_label()
+    #                 break
+
+    #         #set text and source in other window to gray
+    #         for ind, channel in enumerate(self.source_window.mne.ch_names):
+    #             if channel == ch_name:
+    #                 if ch_name in self.selected_candidates:
+    #                     self.source_window.mne.ch_colors[ind] = [0,0,0]
+    #                     self.source_window.canvas.draw()
+    #                 else:
+    #                     self.source_window.mne.ch_colors[ind] = [0.5,0.5,0.5]
+    #                     self.source_window.canvas.draw()
+    #                 break
+    #     #clicked in source window (on timeseries)
+
+        
+    #     elif event.inaxes:
+    #         visible_components = self.source_window.mne.params["picks"]
+    #         component_axes = self.source_window.axes[:-1] 
+    #         #go through timeseries and find the one that was clicked
+    #         ax_idx = component_axes.index(event.inaxes)  # Find which subplot was clicked
+    #         component_idx = visible_components[ax_idx] 
+            
+        
+    #     #user clicked somewhere unanticipated
+    #     else:            
+    #         return
+    #     if ch_name == "":
+    #         return
+    #     #evaluate
+    #     ch_index = self.all_candidate_names.index(ch_name)
+    #     is_correct = ch_index in self.bad_candidates_shown
+    #     if ch_name in self.selected_candidates:   
+    #         #it's correct to remove an incorrect candidate and vice versa         
+    #         is_correct = not is_correct                    
+    #         self.selected_candidates.remove(ch_name)
+    #         if self.instantfeedback:                    
+    #             FeedbackWindow(self.master_window, is_correct)
+    #     else:
+    #         self.selected_candidates.add(ch_name)
+    #         if self.instantfeedback:
+    #             FeedbackWindow(self.master_window, is_correct)
+
+    #     if is_correct:
+    #         self.hits += 1
+    #     else:
+    #         self.false_alarms += 1
+        
+    def on_candidate_picked(self, event):
+        ch_name = ""
+        # Picked a source in the source window (clicked on title)
         if isinstance(event, matplotlib.backend_bases.PickEvent):
             artist = event.artist         
             ch_name = artist.get_text()
-            if self.mode == "channels":
-                print(ch_name)
-            elif self.mode == "sources":
-                print(ch_name)
-            else:
-                print("Error: Mode not recognized")
             
-        #is not a click on topo plot/ in source window 
+        # Clicked in topo window (on title) 
         elif not event.inaxes:
             # Check for title click
-            for figure in self.topo_window.axes:  # Loop over all figures in the window
-                #check if label overlaps (with a bit of margin)
+            for figure in self.topo_window.axes:
+                # Check if label overlaps (with a bit of margin)
                 if ((event.x >= figure.bbox.min[0]) and 
-                (event.x <= figure.bbox.max[0]) and 
-                (event.y >= figure.bbox.min[1]) and 
-                #somehow the bounding box of the axes doesn't include the title which you just clicked
-                (event.y <= figure.bbox.max[1] + 20)): 
+                    (event.x <= figure.bbox.max[0]) and 
+                    (event.y >= figure.bbox.min[1]) and 
+                    (event.y <= figure.bbox.max[1] + 20)): 
                     ch_name = figure.get_label()
                     break
-        #user clicked somewhere unanticipated
+
+        # Clicked in source window (on timeseries)
+        elif event.inaxes:
+            traces = self.source_window.mne.traces  # List of Line2D objects
+            
+            # Find which trace was clicked using MNE's internal logic
+            for line in traces:
+                if line.contains(event)[0]:  # Check if click is on this line
+                    # Map line to component index
+                    component_idx = self.source_window.mne.traces.index(line)
+                    ch_name = self.source_window.mne.ch_names[component_idx]
+                    break
         else:            
+            return        
+        if ch_name == "":
             return
-        #evaluate
         
+        # Evaluate selection correctness
         ch_index = self.all_candidate_names.index(ch_name)
         is_correct = ch_index in self.bad_candidates_shown
         if ch_name in self.selected_candidates:   
-            #it's correct to remove an incorrect candidate and vice versa         
             is_correct = not is_correct                    
             self.selected_candidates.remove(ch_name)
             if self.instantfeedback:                    
                 FeedbackWindow(self.master_window, is_correct)
         else:
-            self.selected_candidates.add(ch_name)
+            self.selected_candidates.append(ch_name)
             if self.instantfeedback:
                 FeedbackWindow(self.master_window, is_correct)
 
+        # Update source window colors
+        for ind, channel in enumerate(self.source_window.mne.ch_names):
+            color = [0.5, 0.5, 0.5] if channel in self.selected_candidates else [0, 0, 0]
+            self.source_window.mne.ch_colors[ind] = color
+            self.source_window.mne.traces[ind].set_color(color)
+
+        # to prevent weird mne picking bug always set all label colors to black
+        for label in self.source_window.axes[0].get_yticklabels():                
+            label.set_color([0.0, 0.0, 0.0, 1.0])
+
+        self.source_window.canvas.draw_idle()        
+
+        # Update topo window titles
+        for figure in self.topo_window.axes:
+            label = figure.get_label()
+            color = 'gray' if label in self.selected_candidates else 'black'
+            figure.set_title(label, color=color)
+        self.topo_window.canvas.draw()
+
+        # Update performance metrics
         if is_correct:
             self.hits += 1
         else:
             self.false_alarms += 1
+
